@@ -3,16 +3,18 @@ package edu.rbtp;
 /**
  * @author Roi Atalla
  */
-public interface RBTPServerSocket {
-	void setBlock(boolean blocking);
+public abstract class RBTPServerSocket {
+	abstract void setBlock(boolean blocking);
 	
-	boolean isBlocking();
+	abstract boolean isBlocking();
 	
-	void bind(RBTPSocketAddress address);
+	abstract void bind(RBTPSocketAddress address);
 	
-	void listen();
+	abstract void listen();
 	
-	RBTPSocket accept();
+	public RBTPSocket accept() {
+		return accept(0);
+	}
 	
-	RBTPSocket accept(long timeout);
+	abstract RBTPSocket accept(long timeout);
 }

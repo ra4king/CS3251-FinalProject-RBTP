@@ -1,22 +1,29 @@
 package edu.rbtp;
 
+import java.net.SocketAddress;
+
 /**
  * @author Roi Atalla
  */
 public class RBTPSocketAddress {
-	private String address;
+	private SocketAddress address;
 	private int port;
 	
-	public RBTPSocketAddress(String address, int port) {
+	/**
+	 * Creates an RBTP Socket Address using the combination of a network address and the RBTP port.
+	 * @param address Socket Address, which is the address and port of the remote machine running the NetworkManager
+	 * @param port the RBTP port
+	 */
+	public RBTPSocketAddress(SocketAddress address, int port) {
 		this.setAddress(address);
 		this.setPort(port);
 	}
 	
-	public String getAddress() {
+	public SocketAddress getAddress() {
 		return address;
 	}
 	
-	public void setAddress(String address) {
+	public void setAddress(SocketAddress address) {
 		this.address = address;
 	}
 	
