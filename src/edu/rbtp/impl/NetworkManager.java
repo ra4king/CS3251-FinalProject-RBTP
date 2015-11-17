@@ -19,7 +19,10 @@ public class NetworkManager {
 		
 		connectionMap = new ConcurrentHashMap<>();
 		
-		new Thread(new NetworkManagerThread()).start();
+		Thread t = new Thread(new NetworkManagerThread());
+		t.setName("RBTP Network Manager Thread");
+		t.setDaemon(true);
+		t.start();
 	}
 	
 	private static NetworkManager instance = null;
@@ -39,16 +42,21 @@ public class NetworkManager {
 		return instance;
 	}
 	
-	int bindConnectionToAnyPort(RBTPConnection connection) throws IOException {
-		int port = (int)Math.round(Math.random() * 256 * 256);
-		bindConnection(port, connection);
-		return port;
+	public synchronized RBTPConnection bindConnectionToAnyPort() throws IOException {
+		int port;
+		do {
+			port = (int)Math.round(Math.random() * 256 * 256);
+		} while(connectionMap.containsKey(port));
+		
+		return bindConnection(port);
 	}
 	
-	void bindConnection(int port, RBTPConnection connection) throws IOException {
+	public synchronized RBTPConnection bindConnection(int port) throws IOException {
+		RBTPConnection connection = new RBTPConnection(port);
 		if(connectionMap.putIfAbsent(port, connection) != null) {
 			throw new IOException("port already bound.");
 		}
+		return connection;
 	}
 	
 	private int checksumFailCount = 0;

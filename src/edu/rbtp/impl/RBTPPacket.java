@@ -12,5 +12,6 @@ class RBTPPacket {
 	public int headerSize;
 	public boolean syn, cha, ack, rej,fin, rst;
 	public byte scale;
+	public ByteBuffer metadata;
 	public ByteBuffer payload;
 }
