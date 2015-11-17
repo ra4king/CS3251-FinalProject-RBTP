@@ -7,7 +7,7 @@ import java.nio.channels.DatagramChannel;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * @author Roi Atalla
+ * @author Roi Atalla, Evan Bailey
  */
 public class NetworkManager {
 	private DatagramChannel channel;
@@ -103,9 +103,21 @@ public class NetworkManager {
 		//TODO: implement sending a packet using channel.write
 	}
 	
+	// TODO: Test this more
 	private int calculateChecksum(ByteBuffer buffer) {
-		//TODO: Calculate CRC16 checksum
-		
-		return 0;
+		int checksum = 0xFFFF;
+
+		// questions/13209364
+		for (int i = 0; i < buffer.position(); i++) {
+			checksum  = ((checksum >>> 8) | (checksum << 8)) & 0xFFFF;
+			checksum ^= buffer.get(i) & 0xFF; // Truncate sign
+			checksum ^= (checksum & 0xFF) >> 4;
+			checksum ^= (checksum << 12) & 0xFFFF;
+			checksum ^= ((checksum & 0xFF) << 5) & 0xFFFF;
+		}
+
+		checksum &= 0xFFFF; // Sign bit is carried over, must & once more
+
+		return checksum;
 	}
 }
