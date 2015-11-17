@@ -34,8 +34,9 @@ public class NetworkManager {
 	public static NetworkManager init(String address, int port) throws IOException {
 		if(instance == null) {
 			synchronized(NetworkManager.class) {
-				if(instance == null)
+				if(instance == null) {
 					instance = new NetworkManager(port);
+				}
 			}
 		}
 		
@@ -106,18 +107,18 @@ public class NetworkManager {
 	// TODO: Test this more
 	private int calculateChecksum(ByteBuffer buffer) {
 		int checksum = 0xFFFF;
-
+		
 		// questions/13209364
-		for (int i = 0; i < buffer.position(); i++) {
-			checksum  = ((checksum >>> 8) | (checksum << 8)) & 0xFFFF;
+		for(int i = buffer.position(); i < buffer.limit(); i++) {
+			checksum = ((checksum >>> 8) | (checksum << 8)) & 0xFFFF;
 			checksum ^= buffer.get(i) & 0xFF; // Truncate sign
 			checksum ^= (checksum & 0xFF) >> 4;
 			checksum ^= (checksum << 12) & 0xFFFF;
 			checksum ^= ((checksum & 0xFF) << 5) & 0xFFFF;
 		}
-
+		
 		checksum &= 0xFFFF; // Sign bit is carried over, must & once more
-
+		
 		return checksum;
 	}
 }
