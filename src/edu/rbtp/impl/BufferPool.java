@@ -8,30 +8,14 @@ import java.util.ArrayList;
  * @author Roi Atalla
  */
 class BufferPool {
-	private ArrayList<ByteBuffer> pool;
+	private BufferPool() {}
 	
-	private BufferPool() {
-		pool = new ArrayList<>();
-	}
+	private static ArrayList<ByteBuffer> pool = new ArrayList<>();
 	
-	private static BufferPool instance;
-	
-	public static BufferPool getInstance() {
-		if(instance == null) {
-			synchronized(BufferPool.class) {
-				if(instance == null) {
-					instance = new BufferPool();
-				}
-			}
-		}
-		
-		return instance;
-	}
-	
-	public synchronized ByteBuffer getBuffer(int size) {
+	public static synchronized ByteBuffer getBuffer(int size) {
 		ByteBuffer best = null;
 		for(ByteBuffer b : pool) {
-			if(b.capacity() >= size && (best == null || b.capacity() < best.capacity()))
+			if(b.capacity() >= size && b.capacity() < size * 3 &&  (best == null || b.capacity() < best.capacity()))
 				best = b;
 		}
 		
@@ -45,7 +29,7 @@ class BufferPool {
 		return best;
 	}
 	
-	public synchronized void release(ByteBuffer buffer) {
+	public static synchronized void release(ByteBuffer buffer) {
 		pool.add(buffer);
 	}
 }

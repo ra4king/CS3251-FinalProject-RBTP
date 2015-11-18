@@ -2,16 +2,20 @@ package edu.rbtp.impl;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+
+import edu.rbtp.RBTPSocketAddress;
 
 /**
  * @author Roi Atalla, Evan Bailey
  */
 public class NetworkManager {
 	private DatagramChannel channel;
-	private ConcurrentHashMap<Integer, RBTPConnection> connectionMap;
+	private ConcurrentHashMap<Integer, ConnectionInfo> connectionMap;
 	
 	private NetworkManager(int port) throws IOException {
 		channel = DatagramChannel.open();
@@ -43,54 +47,82 @@ public class NetworkManager {
 		return instance;
 	}
 	
-	public synchronized RBTPConnection bindConnectionToAnyPort() throws IOException {
+	public synchronized RBTPConnection createConnectionOnAnyPort() throws IOException {
 		int port;
 		do {
 			port = (int)Math.round(Math.random() * 256 * 256);
 		} while(connectionMap.containsKey(port));
 		
-		return bindConnection(port);
+		return createConnection(port);
 	}
 	
-	public synchronized RBTPConnection bindConnection(int port) throws IOException {
+	public synchronized RBTPConnection createConnection(int port) throws IOException {
 		RBTPConnection connection = new RBTPConnection(port);
-		if(connectionMap.putIfAbsent(port, connection) != null) {
+		ConnectionInfo connectionInfo = this.new ConnectionInfo(connection);
+		connectionInfo.packetsReceived = connection.initialize(connectionInfo);
+		
+		
+		if(connectionMap.putIfAbsent(port, connectionInfo) != null) {
 			throw new IOException("port already bound.");
 		}
 		return connection;
 	}
 	
-	private int checksumFailCount = 0;
-	private int noMappingFoundCount = 0;
+	private class ConnectionInfo implements Consumer<RBTPPacket> {
+		RBTPConnection connection;
+		Consumer<RBTPPacket> packetsReceived;
+		
+		ConnectionInfo(RBTPConnection connection) {
+			this.connection = connection;
+		}
+		
+		private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(4096);
+		
+		@Override
+		public void accept(RBTPPacket packet) {
+			sendBuffer.clear();
+			packet.encode(sendBuffer);
+			
+			try {
+				channel.send(sendBuffer, packet.address.getAddress());
+			} catch(IOException exc) {
+				throw new RuntimeException(exc);
+			}
+		}
+	}
+	
+	public int checksumFailCount = 0;
+	public int noMappingFoundCount = 0;
 	
 	private class NetworkManagerThread implements Runnable {
 		@Override
 		public void run() {
-			ByteBuffer buffer = BufferPool.getInstance().getBuffer(4096); // 4K for now
+			ByteBuffer buffer = ByteBuffer.allocateDirect(4096); // 4K for now
 			
 			while(true) {
 				try {
-					int readCount = channel.read(buffer);
-					if(readCount == -1) {
-						throw new IOException("network channel is closed.");
-					}
-					
+					SocketAddress address = channel.receive(buffer);
 					buffer.flip();
 					
 					short recvdChecksum = buffer.getShort(12);
-					if(calculateChecksum(buffer) != recvdChecksum) {
+					if(RBTPPacket.calculateChecksum(buffer) != recvdChecksum) {
 						checksumFailCount++;
 						continue;
 					}
 					
-					int destPort = buffer.getShort();
-					RBTPConnection connection = connectionMap.get(destPort);
+					buffer.flip();
+					RBTPPacket packet = new RBTPPacket();
+					packet.decode(buffer);
+					
+					ConnectionInfo connection = connectionMap.get(packet.destinationPort);
 					if(connection == null) {
 						noMappingFoundCount++;
 						continue;
 					}
 					
-					//TODO: feed the buffer to the connection
+					packet.address = new RBTPSocketAddress(address, packet.sourcePort);
+					
+					connection.packetsReceived.accept(packet);
 				}
 				catch(Exception exc) {
 					exc.printStackTrace();
@@ -98,27 +130,5 @@ public class NetworkManager {
 				}
 			}
 		}
-	}
-	
-	void sendPacket(RBTPPacket packet) {
-		//TODO: implement sending a packet using channel.write
-	}
-	
-	// TODO: Test this more
-	private int calculateChecksum(ByteBuffer buffer) {
-		int checksum = 0xFFFF;
-		
-		// questions/13209364
-		for(int i = buffer.position(); i < buffer.limit(); i++) {
-			checksum = ((checksum >>> 8) | (checksum << 8)) & 0xFFFF;
-			checksum ^= buffer.get(i) & 0xFF; // Truncate sign
-			checksum ^= (checksum & 0xFF) >> 4;
-			checksum ^= (checksum << 12) & 0xFFFF;
-			checksum ^= ((checksum & 0xFF) << 5) & 0xFFFF;
-		}
-		
-		checksum &= 0xFFFF; // Sign bit is carried over, must & once more
-		
-		return checksum;
 	}
 }

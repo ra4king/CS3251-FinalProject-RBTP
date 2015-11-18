@@ -11,7 +11,7 @@ public class RBTPSocketAddress {
 	
 	/**
 	 * Creates an RBTP Socket Address using the combination of a network address and the RBTP port.
-	 * @param address Socket Address, which is the address and port of the remote machine running the NetworkManager
+	 * @param address Socket Address, which is the address and UDP port of the remote machine running the NetworkManager
 	 * @param port the RBTP port
 	 */
 	public RBTPSocketAddress(SocketAddress address, int port) {
