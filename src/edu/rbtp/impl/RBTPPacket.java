@@ -3,6 +3,7 @@ package edu.rbtp.impl;
 import java.nio.ByteBuffer;
 
 import edu.rbtp.RBTPSocketAddress;
+import edu.rbtp.tools.BufferPool;
 
 /**
  * @author Roi Atalla
@@ -82,6 +83,24 @@ class RBTPPacket {
 		buffer.putShort(12, (short)checksum);
 		
 		buffer.limit(prevLimit);
+	}
+	
+	@Override
+	protected void finalize() throws Throwable{
+		destroy();
+		
+		super.finalize();
+	}
+	
+	public void destroy() {
+		if(metadata != null) {
+			BufferPool.release(metadata);
+			metadata = null;
+		}
+		if(payload != null) {
+			BufferPool.release(payload);
+			payload = null;
+		}
 	}
 	
 	public static int calculateChecksum(ByteBuffer buffer) {

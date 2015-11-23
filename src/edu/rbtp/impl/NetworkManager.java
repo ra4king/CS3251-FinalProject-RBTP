@@ -32,14 +32,17 @@ public class NetworkManager {
 	private static NetworkManager instance = null;
 	
 	public static NetworkManager getInstance() {
+		if(instance == null)
+			throw new IllegalStateException("NetworkManager not initialized: NetworkManger.init(int UDPport)");
+		
 		return instance;
 	}
 	
-	public static NetworkManager init(String address, int port) throws IOException {
+	public static NetworkManager init(int UDPport) throws IOException {
 		if(instance == null) {
 			synchronized(NetworkManager.class) {
 				if(instance == null) {
-					instance = new NetworkManager(port);
+					instance = new NetworkManager(UDPport);
 				}
 			}
 		}
@@ -47,33 +50,63 @@ public class NetworkManager {
 		return instance;
 	}
 	
-	public synchronized RBTPConnection createConnectionOnAnyPort() throws IOException {
+	public synchronized void bindSocketToAnyPort(Bindable socket) throws IOException {
 		int port;
 		do {
-			port = (int)Math.round(Math.random() * 256 * 256);
+			port = (int)(Math.random() * 256 * 256);
 		} while(connectionMap.containsKey(port));
 		
-		return createConnection(port);
+		bindSocket(port, socket);
 	}
 	
-	public synchronized RBTPConnection createConnection(int port) throws IOException {
-		RBTPConnection connection = new RBTPConnection(port);
-		ConnectionInfo connectionInfo = this.new ConnectionInfo(connection);
-		connectionInfo.packetsReceived = connection.initialize(connectionInfo);
+	public synchronized void bindSocket(int port, Bindable socket) throws IOException {
+		if(socket.isBound())
+			throw new IllegalArgumentException("Socket is already bound.");
 		
+		ConnectionInfo connectionInfo = this.new ConnectionInfo(port, socket);
 		
 		if(connectionMap.putIfAbsent(port, connectionInfo) != null) {
 			throw new IOException("port already bound.");
 		}
-		return connection;
+		
+		socket.bind(connectionInfo);
+		if(connectionInfo.getPacketReceivedConsumer() == null)
+			throw new IllegalStateException("Did not set packetReceivedConsumer.");
 	}
 	
-	private class ConnectionInfo implements Consumer<RBTPPacket> {
-		RBTPConnection connection;
-		Consumer<RBTPPacket> packetsReceived;
+	private class ConnectionInfo implements BindingInterface, Consumer<RBTPPacket> {
+		int port;
+		Bindable socket;
+		Consumer<RBTPPacket> packetReceived;
 		
-		ConnectionInfo(RBTPConnection connection) {
-			this.connection = connection;
+		ConnectionInfo(int port, Bindable socket) {
+			this.port = port;
+			this.socket = socket;
+		}
+		
+		@Override
+		public int getPort() {
+			return port;
+		}
+		
+		@Override
+		public Consumer<RBTPPacket> getPacketSendConsumer() {
+			return this;
+		}
+		
+		@Override
+		public Consumer<RBTPPacket> getPacketReceivedConsumer() {
+			return packetReceived;
+		}
+		
+		@Override
+		public void setPacketReceivedConsumer(Consumer<RBTPPacket> packetReceived) {
+			this.packetReceived = packetReceived;
+		}
+		
+		@Override
+		public void unbind() {
+			connectionMap.remove(port);
 		}
 		
 		private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(4096);
@@ -120,9 +153,10 @@ public class NetworkManager {
 						continue;
 					}
 					
-					packet.address = new RBTPSocketAddress(address, packet.sourcePort);
+					packet.address = new RBTPSocketAddress((InetSocketAddress)address, packet.sourcePort);
 					
-					connection.packetsReceived.accept(packet);
+					if(connection.packetReceived != null)
+						connection.packetReceived.accept(packet);
 				}
 				catch(Exception exc) {
 					exc.printStackTrace();

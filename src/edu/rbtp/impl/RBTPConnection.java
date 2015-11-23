@@ -7,25 +7,37 @@ import java.util.function.Consumer;
 /**
  * @author Roi Atalla
  */
-public class RBTPConnection {
-	private int port;
-	private boolean closed;
+public class RBTPConnection implements Bindable {
+	private volatile boolean closed;
+	private BindingInterface bindingInterface;
 	
-	RBTPConnection(int port) {
-		this.port = port;
+	public boolean isBound() {
+		return bindingInterface != null;
 	}
 	
-	Consumer<RBTPPacket> initialize(Consumer<RBTPPacket> sendPacket) {
-		RBTPInputStreamThread rbtpIS = new RBTPInputStreamThread();
+	public void bind(BindingInterface bindingInterface) {
+		if(this.bindingInterface != null)
+			throw new IllegalStateException("Already bound.");
+		
+		this.bindingInterface = bindingInterface;
+		
+		bindingInterface.setPacketReceivedConsumer(new RBTPInputStreamThread());
+		
 		Thread ist = new Thread();
-		ist.setName("RBTP Input Stream Thread port: " + port);
+		ist.setName("RBTP Input Stream Thread port: " + bindingInterface.getPort());
 		ist.start();
 		
-		Thread ost = new Thread(new RBTPOutputStreamThread(sendPacket));
-		ost.setName("RBTP Output Stream Thread port: " + port);
+		Thread ost = new Thread(new RBTPOutputStreamThread(bindingInterface.getPacketSendConsumer()));
+		ost.setName("RBTP Output Stream Thread port: " + bindingInterface.getPort());
 		ost.start();
-		
-		return rbtpIS;
+	}
+	
+	public boolean isClosed() {
+		return closed;
+	}
+	
+	public void close() {
+		closed = true;
 	}
 	
 	private class RBTPOutputStreamThread implements Runnable {
@@ -41,7 +53,7 @@ public class RBTPConnection {
 		}
 	}
 	
-	class RBTPInputStreamThread implements Runnable, Consumer<RBTPPacket> {
+	private class RBTPInputStreamThread implements Runnable, Consumer<RBTPPacket> {
 		private LinkedBlockingQueue<RBTPPacket> packetsQueue;
 		
 		RBTPInputStreamThread() {
@@ -53,7 +65,7 @@ public class RBTPConnection {
 			packetsQueue.offer(packet);
 		}
 		
-		final long TIMEOUT = 100;
+		private final long TIMEOUT = 100;
 		
 		@Override
 		public void run() {
@@ -65,6 +77,8 @@ public class RBTPConnection {
 					}
 					else {
 						// TODO: we have a packet
+						
+						packet.destroy();
 					}
 				} catch(Exception exc) {
 					exc.printStackTrace();

@@ -2,27 +2,58 @@ package edu.rbtp;
 
 import java.nio.ByteBuffer;
 
+import edu.rbtp.impl.RBTPConnection;
+
 /**
  * @author Roi Atalla
  */
-public abstract class RBTPSocket {
-	public abstract void setBlocking(boolean blocking);
+public class RBTPSocket {
+	private boolean blocking;
+	private RBTPConnection connection;
 	
-	public abstract boolean isBlocking();
+	RBTPSocket(boolean blocking, RBTPConnection connection) {
+		this.blocking = blocking;
+		this.connection = connection;
+	}
 	
-	public abstract void connect(RBTPSocketAddress address);
+	public void setBlocking(boolean blocking) {
+		this.blocking = blocking;
+	}
 	
-	public abstract boolean isConnected();
+	public boolean isBlocking() {
+		return blocking;
+	}
+	
+	public void connect(RBTPSocketAddress address) {
+		if(connection != null)
+			throw new IllegalStateException("Already connected.");
+	}
+	
+	public boolean isConnected() {
+		return connection != null && connection.isClosed();
+	}
 	
 	public long read(ByteBuffer buffer) {
 		return read(buffer, buffer.position(), buffer.remaining());
 	}
 	
-	public abstract long read(ByteBuffer buffer, int offset, int length);
+	public long read(ByteBuffer buffer, int offset, int length) {
+		return 0;
+	}
 	
 	public long send(ByteBuffer buffer) {
 		return send(buffer, buffer.position(), buffer.remaining());
 	}
 	
-	public abstract long send(ByteBuffer buffer, int offset, int length);
+	public long send(ByteBuffer buffer, int offset, int length) {
+		return 0;
+	}
+	
+	public boolean isClosed() {
+		return connection.isClosed();
+	}
+	
+	public void close() {
+		connection.close();
+	}
 }

@@ -1,4 +1,4 @@
-package edu.rbtp.impl;
+package edu.rbtp.tools;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -7,10 +7,16 @@ import java.util.ArrayList;
 /**
  * @author Roi Atalla
  */
-class BufferPool {
+public class BufferPool {
 	private BufferPool() {}
 	
 	private static ArrayList<ByteBuffer> pool = new ArrayList<>();
+	
+	private static int buffersCreated = 0;
+	
+	public synchronized int getBuffersCreatedCount() {
+		return buffersCreated;
+	}
 	
 	public static synchronized ByteBuffer getBuffer(int size) {
 		ByteBuffer best = null;
@@ -21,6 +27,7 @@ class BufferPool {
 		
 		if(best == null) {
 			best = ByteBuffer.allocate(size);
+			buffersCreated++;
 		}
 		
 		best.clear();
