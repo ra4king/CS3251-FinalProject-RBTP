@@ -2,7 +2,6 @@ package edu.rbtp;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import edu.rbtp.impl.NetworkManager;
 import edu.rbtp.impl.RBTPServer;
@@ -37,7 +36,7 @@ public class RBTPServerSocket {
 	public void bind(int port) throws IOException {
 		this.port = port;
 		serverHandler = new RBTPServer();
-		NetworkManager.getInstance().bindSocket(port, serverHandler);
+		NetworkManager.getInstance().bindSocket((short)port, serverHandler);
 	}
 	
 	public void listen() {
@@ -50,7 +49,7 @@ public class RBTPServerSocket {
 	
 	public RBTPSocket accept(long timeout) {
 		try {
-			return blocking ? connectionsToAccept.poll() : connectionsToAccept.poll(0, TimeUnit.MILLISECONDS);
+			return blocking ? connectionsToAccept.take() : connectionsToAccept.poll();
 		} catch(Exception exc) {
 			return null;
 		}

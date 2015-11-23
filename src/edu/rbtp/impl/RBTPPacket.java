@@ -11,34 +11,138 @@ import edu.rbtp.tools.BufferPool;
 class RBTPPacket {
 	public RBTPSocketAddress address;
 	
-	public int sourcePort;
-	public int destinationPort;
-	public long sequenceNumber;
-	public int headerSize;
-	public boolean syn, cha, ack, rej,fin, rst;
-	public byte scale;
-	public int checksum;
-	public int receiveWindow;
-	public ByteBuffer metadata;
-	public ByteBuffer payload;
+	private short sourcePort;
+	private short destinationPort;
+	private int sequenceNumber;
+	private short flags;
+	private short receiveWindow;
+	private ByteBuffer metadata;
+	private ByteBuffer payload;
+	
+	public short sourcePort() {
+		return sourcePort;
+	}
+	
+	public void sourcePort(short sourcePort) {
+		this.sourcePort = sourcePort;
+	}
+	
+	public short destinationPort() {
+		return destinationPort;
+	}
+	
+	public void destinationPort(short destinationPort) {
+		this.destinationPort = destinationPort;
+	}
+	
+	public int sequenceNumber() {
+		return sequenceNumber;
+	}
+	
+	public void sequenceNumber(int sequenceNumber) {
+		this.sequenceNumber = sequenceNumber;
+	}
+	
+	public short headerSize() {
+		if(metadata != null && metadata.capacity() % 4 != 0)
+			throw new IllegalStateException("metadata capacity must be divisible by four");
+		
+		return (short)(4 + (metadata == null ? 0 : metadata.capacity() / 4));
+	}
+	
+	public boolean syn() {
+		return (flags & 0x8000) != 0;
+	}
+	
+	public void syn(boolean syn) {
+		flags |= syn ? 0x8000 : 0;
+	}
+	
+	public boolean cha() {
+		return (flags & 0x4000) != 0;
+	}
+	
+	public void cha(boolean cha) {
+		flags |= cha ? 0x4000 : 0;
+	}
+	
+	public boolean ack() {
+		return (flags & 0x2000) != 0;
+	}
+	
+	public void ack(boolean ack) {
+		flags |= ack ? 0x2000 : 0;
+	}
+	
+	public boolean rej() {
+		return (flags & 0x1000) != 0;
+	}
+	
+	public void rej(boolean rej) {
+		flags |= rej ? 0x1000 : 0;
+	}
+	
+	public boolean fin() {
+		return (flags & 0x0800) != 0;
+	}
+	
+	public void fin(boolean fin) {
+		flags |= fin ? 0x0800 : 0;
+	}
+	
+	public boolean rst() {
+		return (flags & 0x0400) != 0;
+	}
+	
+	public void rst(boolean rst) {
+		flags |= rst ? 0x0400 : 0;
+	}
+	
+	public byte scale() {
+		return (byte)(flags & 0xF); 
+	}
+	
+	public void scale(byte scale) {
+		flags |= scale & 0xF;
+	}
+	
+	public short receiveWindow() {
+		return receiveWindow;
+	}
+	
+	public void receiveWindow(short receiveWindow) {
+		this.receiveWindow = receiveWindow;
+	}
+	
+	public ByteBuffer metadata() {
+		return metadata;
+	}
+	
+	public void metadata(ByteBuffer metadata) {
+		this.metadata = metadata;
+	}
+	
+	public ByteBuffer payload() {
+		return payload;
+	}
+	
+	public void payload(ByteBuffer payload) {
+		this.payload = payload;
+	}
+	
 	
 	public void decode(ByteBuffer buffer) {
-		sourcePort = buffer.getShort() & 0xFFFF;
-		destinationPort = buffer.getShort()  & 0xFFFF;
-		sequenceNumber = buffer.getInt() & 0xFFFFFFFFL;
-		headerSize = buffer.getShort() & 0xFFFF;
+		sourcePort = buffer.getShort();
+		destinationPort = buffer.getShort();
+		sequenceNumber = buffer.getInt();
 		
-		short s = buffer.getShort(); 
-		syn = (s & 0x8000) != 0;
-		cha = (s & 0x4000) != 0;
-		ack = (s & 0x2000) != 0;
-		rej = (s & 0x1000) != 0;
-		fin = (s & 0x0800) != 0;
-		rst = (s & 0x0400) != 0;
-		scale = (byte)(s & 0xF);
+		int headerSize = buffer.getShort();
 		
-		checksum = buffer.getShort() & 0xFFFF;
-		receiveWindow = buffer.getShort() & 0xFFFF;
+		flags = buffer.getShort();
+		
+		short checksum = buffer.getShort();
+		
+		receiveWindow = buffer.getShort();
 		
 		metadata = BufferPool.getBuffer((headerSize - 4) * 4);
 		for(int i = 0; i < metadata.capacity(); i += 4) {
@@ -49,40 +153,29 @@ class RBTPPacket {
 		payload = BufferPool.getBuffer(buffer.remaining());
 		payload.put(buffer);
 		payload.flip();
+		
+		if(checksum() != checksum) {
+			destroy();
+			throw new IllegalStateException("Checksum does not match.");
+		}
 	}
 	
 	public void encode(ByteBuffer buffer) {
-		int startPos = buffer.position();
-		
-		buffer.putShort((short)sourcePort);
-		buffer.putShort((short)destinationPort);
-		buffer.putInt((int)sequenceNumber);
-		buffer.putShort((short)headerSize);
-		
-		short s = 0;
-		s |= syn ? 0x8000 : 0;
-		s |= cha ? 0x4000 : 0;
-		s |= ack ? 0x2000 : 0;
-		s |= rej ? 0x1000 : 0;
-		s |= fin ? 0x0800 : 0;
-		s |= rst ? 0x0400 : 0;
-		s |= scale & 0xF;
-		buffer.putShort(s);
-		buffer.putShort((short)0);
-		buffer.putShort((short)receiveWindow);
-		metadata.clear(); // does not actually clear data, only resets position and limit
-		buffer.put(metadata);
-		payload.clear();
-		buffer.put(payload);
-		
-		int prevLimit = buffer.limit();
-		buffer.limit(buffer.position());
-		buffer.position(startPos);
-		
-		checksum = calculateChecksum(buffer);
-		buffer.putShort(12, (short)checksum);
-		
-		buffer.limit(prevLimit);
+		buffer.putShort(sourcePort());
+		buffer.putShort(destinationPort());
+		buffer.putInt(sequenceNumber());
+		buffer.putShort(headerSize());
+		buffer.putShort(flags);
+		buffer.putShort(checksum());
+		buffer.putShort(receiveWindow());
+		if(metadata != null) {
+			metadata.clear(); // does not actually clear data, only resets position and limit
+			buffer.put(metadata);
+		}
+		if(payload != null) {
+			payload.clear();
+			buffer.put(payload);
+		}
 	}
 	
 	@Override
@@ -103,20 +196,45 @@ class RBTPPacket {
 		}
 	}
 	
-	public static int calculateChecksum(ByteBuffer buffer) {
+	// CRC16 checksum
+	public short checksum() {
 		int checksum = 0xFFFF;
 		
-		// questions/13209364
-		for(int i = 0; buffer.remaining() > 0; i++) {
-			checksum = ((checksum >>> 8) | (checksum << 8)) & 0xFFFF;
-			checksum ^= i == 12 || i == 13 ? 0 : buffer.get() & 0xFF; // Truncate sign;
-			checksum ^= (checksum & 0xFF) >> 4;
-			checksum ^= (checksum << 12) & 0xFFFF;
-			checksum ^= ((checksum & 0xFF) << 5) & 0xFFFF;
+		checksum = calculateChecksum(checksum, sourcePort());
+		checksum = calculateChecksum(checksum, destinationPort());
+		checksum = calculateChecksum(checksum, (short)(sequenceNumber() >>> 16));
+		checksum = calculateChecksum(checksum, (short)sequenceNumber());
+		checksum = calculateChecksum(checksum, headerSize());
+		checksum = calculateChecksum(checksum, flags);
+		checksum = calculateChecksum(checksum, (short)0);
+		checksum = calculateChecksum(checksum, receiveWindow());
+		
+		if(metadata != null) {
+			for(int i = 0; i < metadata.capacity(); i++) {
+				checksum = calculateChecksum(checksum, metadata.get(i));
+			}
 		}
 		
-		checksum &= 0xFFFF; // Sign bit is carried over
+		if(payload != null) {
+			for(int i = 0; i < payload.capacity(); i++) {
+				checksum = calculateChecksum(checksum, payload.get(i));
+			}
+		}
 		
+		return (short)checksum;
+	}
+	
+	private int calculateChecksum(int checksum, short value) {
+		checksum = calculateChecksum(checksum, (byte)((value & 0xFF00) >>> 8));
+		return calculateChecksum(checksum, (byte)(value & 0xFF));
+	}
+	
+	private int calculateChecksum(int checksum, byte value) {
+		checksum = ((checksum >>> 8) | (checksum << 8)) & 0xFFFF;
+		checksum ^= (int)value & 0xFF; // Truncate sign;
+		checksum ^= (checksum & 0xFF) >> 4;
+		checksum ^= (checksum << 12) & 0xFFFF;
+		checksum ^= ((checksum & 0xFF) << 5) & 0xFFFF;
 		return checksum;
 	}
 }

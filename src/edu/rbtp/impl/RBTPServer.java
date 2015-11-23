@@ -61,7 +61,7 @@ public class RBTPServer implements Bindable {
 					private Consumer<RBTPPacket> packetReceivedConsumer;
 					
 					@Override
-					public int getPort() {
+					public short getPort() {
 						return serverBindingInterface.getPort();
 					}
 					
@@ -87,6 +87,7 @@ public class RBTPServer implements Bindable {
 				};
 				clients.put(packet.address, newBindingInterface);
 				newConnection.bind(newBindingInterface);
+				
 				
 				if(acceptHandler != null)
 					acceptHandler.accept(newConnection);

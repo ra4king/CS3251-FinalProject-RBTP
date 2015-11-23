@@ -6,7 +6,7 @@ import java.util.function.Consumer;
  * @author Roi Atalla
  */
 public interface BindingInterface {
-	int getPort();
+	short getPort();
 	Consumer<RBTPPacket> getPacketSendConsumer();
 	Consumer<RBTPPacket> getPacketReceivedConsumer();
 	void setPacketReceivedConsumer(Consumer<RBTPPacket> packetRcvd);

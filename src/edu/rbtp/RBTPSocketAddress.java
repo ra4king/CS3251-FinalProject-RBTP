@@ -8,7 +8,7 @@ import java.net.SocketAddress;
  */
 public class RBTPSocketAddress {
 	private InetSocketAddress address;
-	private int port;
+	private short port;
 	
 	/**
 	 * Creates an RBTP Socket Address using the combination of a network address and the RBTP port.
@@ -28,12 +28,12 @@ public class RBTPSocketAddress {
 		this.address = address;
 	}
 	
-	public int getPort() {
+	public short getPort() {
 		return port;
 	}
 	
 	public void setPort(int port) {
-		this.port = port;
+		this.port = (short)port;
 	}
 	
 	@Override

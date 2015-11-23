@@ -1,7 +1,9 @@
 package edu.rbtp;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import edu.rbtp.impl.NetworkManager;
 import edu.rbtp.impl.RBTPConnection;
 
 /**
@@ -24,9 +26,14 @@ public class RBTPSocket {
 		return blocking;
 	}
 	
-	public void connect(RBTPSocketAddress address) {
+	public void connect(RBTPSocketAddress address) throws IOException {
 		if(connection != null)
 			throw new IllegalStateException("Already connected.");
+		
+		connection = new RBTPConnection();
+		NetworkManager.getInstance().bindSocketToAnyPort(connection);
+		
+		connection.connect(address);
 	}
 	
 	public boolean isConnected() {
@@ -38,7 +45,7 @@ public class RBTPSocket {
 	}
 	
 	public long read(ByteBuffer buffer, int offset, int length) {
-		return 0;
+		return connection.read(buffer, offset, length, blocking);
 	}
 	
 	public long send(ByteBuffer buffer) {
@@ -46,7 +53,7 @@ public class RBTPSocket {
 	}
 	
 	public long send(ByteBuffer buffer, int offset, int length) {
-		return 0;
+		return connection.send(buffer, offset, length, blocking);
 	}
 	
 	public boolean isClosed() {

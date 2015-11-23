@@ -15,7 +15,7 @@ import edu.rbtp.RBTPSocketAddress;
  */
 public class NetworkManager {
 	private DatagramChannel channel;
-	private ConcurrentHashMap<Integer, ConnectionInfo> connectionMap;
+	private ConcurrentHashMap<Short, ConnectionInfo> connectionMap;
 	
 	private NetworkManager(int port) throws IOException {
 		channel = DatagramChannel.open();
@@ -51,15 +51,15 @@ public class NetworkManager {
 	}
 	
 	public synchronized void bindSocketToAnyPort(Bindable socket) throws IOException {
-		int port;
+		short port;
 		do {
-			port = (int)(Math.random() * 256 * 256);
+			port = (short)(Math.random() * 256 * 256);
 		} while(connectionMap.containsKey(port));
 		
 		bindSocket(port, socket);
 	}
 	
-	public synchronized void bindSocket(int port, Bindable socket) throws IOException {
+	public synchronized void bindSocket(short port, Bindable socket) throws IOException {
 		if(socket.isBound())
 			throw new IllegalArgumentException("Socket is already bound.");
 		
@@ -75,17 +75,17 @@ public class NetworkManager {
 	}
 	
 	private class ConnectionInfo implements BindingInterface, Consumer<RBTPPacket> {
-		int port;
+		short port;
 		Bindable socket;
 		Consumer<RBTPPacket> packetReceived;
 		
-		ConnectionInfo(int port, Bindable socket) {
+		ConnectionInfo(short port, Bindable socket) {
 			this.port = port;
 			this.socket = socket;
 		}
 		
 		@Override
-		public int getPort() {
+		public short getPort() {
 			return port;
 		}
 		
@@ -112,9 +112,10 @@ public class NetworkManager {
 		private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(4096);
 		
 		@Override
-		public void accept(RBTPPacket packet) {
+		public synchronized void accept(RBTPPacket packet) {
 			sendBuffer.clear();
 			packet.encode(sendBuffer);
+			sendBuffer.flip();
 			
 			try {
 				channel.send(sendBuffer, packet.address.getAddress());
@@ -137,23 +138,21 @@ public class NetworkManager {
 					SocketAddress address = channel.receive(buffer);
 					buffer.flip();
 					
-					short recvdChecksum = buffer.getShort(12);
-					if(RBTPPacket.calculateChecksum(buffer) != recvdChecksum) {
+					RBTPPacket packet = new RBTPPacket();
+					try {
+						packet.decode(buffer);
+					} catch(Exception exc) {
 						checksumFailCount++;
 						continue;
-					}
+					}					
 					
-					buffer.flip();
-					RBTPPacket packet = new RBTPPacket();
-					packet.decode(buffer);
-					
-					ConnectionInfo connection = connectionMap.get(packet.destinationPort);
+					ConnectionInfo connection = connectionMap.get(packet.destinationPort());
 					if(connection == null) {
 						noMappingFoundCount++;
 						continue;
 					}
 					
-					packet.address = new RBTPSocketAddress((InetSocketAddress)address, packet.sourcePort);
+					packet.address = new RBTPSocketAddress((InetSocketAddress)address, packet.sourcePort());
 					
 					if(connection.packetReceived != null)
 						connection.packetReceived.accept(packet);
