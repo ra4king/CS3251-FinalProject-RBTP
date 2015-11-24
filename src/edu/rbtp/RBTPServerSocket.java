@@ -13,7 +13,7 @@ public class RBTPServerSocket {
 	private int port;
 	private RBTPServer serverHandler;
 	private LinkedBlockingQueue<RBTPSocket> connectionsToAccept;
-	private boolean blocking;
+	private boolean blocking = true;
 	
 	public RBTPServerSocket() {}
 	
@@ -40,17 +40,21 @@ public class RBTPServerSocket {
 	}
 	
 	public void listen() {
+		if(serverHandler == null)
+			throw new IllegalStateException("SocketServer not bound.");
+		
+		connectionsToAccept = new LinkedBlockingQueue<>();
 		serverHandler.setAcceptHandler((connection) -> connectionsToAccept.offer(new RBTPSocket(blocking, connection)));
 	}
 	
 	public RBTPSocket accept() {
-		return accept(0);
-	}
-	
-	public RBTPSocket accept(long timeout) {
+		if(connectionsToAccept == null)
+			throw new IllegalStateException("SocketServer not listening.");
+		
 		try {
 			return blocking ? connectionsToAccept.take() : connectionsToAccept.poll();
 		} catch(Exception exc) {
+			exc.printStackTrace();
 			return null;
 		}
 	}

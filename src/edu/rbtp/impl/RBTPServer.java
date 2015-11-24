@@ -50,12 +50,18 @@ public class RBTPServer implements Bindable {
 		
 		@Override
 		public void accept(RBTPPacket packet) {
-			if(closed && clients.containsKey(packet.address))
+			if(acceptHandler == null || (closed && !clients.containsKey(packet.address))) {
+				System.out.println("SERVER: NOPE");
 				return;
+			}
+			
+			System.out.println("SERVER: Received packet (seq: " + packet.sequenceNumber() + ") from " + packet.address);
 			
 			BindingInterface clientBindingInterface = clients.get(packet.address);
 			
-			if(serverBindingInterface == null) {
+			if(clientBindingInterface == null) {
+				System.out.println("SERVER: New connection from " + packet.address);
+				
 				RBTPConnection newConnection = new RBTPConnection();
 				BindingInterface newBindingInterface = new BindingInterface() {
 					private Consumer<RBTPPacket> packetReceivedConsumer;
@@ -87,10 +93,18 @@ public class RBTPServer implements Bindable {
 				};
 				clients.put(packet.address, newBindingInterface);
 				newConnection.bind(newBindingInterface);
+				newConnection.accept(packet);
 				
-				
-				if(acceptHandler != null)
-					acceptHandler.accept(newConnection);
+				new Thread(() -> {
+					while(!newConnection.isConnected() && !newConnection.isClosed()) {
+						try {
+							Thread.sleep(100);
+						} catch(Exception exc) {}
+						
+						if(newConnection.isConnected())
+							acceptHandler.accept(newConnection);
+					}
+				}).start();
 			} else if(clientBindingInterface.getPacketReceivedConsumer() != null) {
 				clientBindingInterface.getPacketReceivedConsumer().accept(packet);
 			}

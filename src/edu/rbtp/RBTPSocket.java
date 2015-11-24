@@ -13,6 +13,14 @@ public class RBTPSocket {
 	private boolean blocking;
 	private RBTPConnection connection;
 	
+	public RBTPSocket() {
+		this(true);
+	}
+	
+	public RBTPSocket(boolean blocking) {
+		this.blocking = blocking;
+	}
+	
 	RBTPSocket(boolean blocking, RBTPConnection connection) {
 		this.blocking = blocking;
 		this.connection = connection;

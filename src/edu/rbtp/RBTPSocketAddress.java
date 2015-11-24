@@ -52,6 +52,6 @@ public class RBTPSocketAddress {
 	
 	@Override
 	public String toString() {
-		return address + ":" + port;
+		return address + ":" + ((int)port & 0xFFFF);
 	}
 }

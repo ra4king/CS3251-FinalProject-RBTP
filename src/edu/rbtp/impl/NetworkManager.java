@@ -109,7 +109,7 @@ public class NetworkManager {
 			connectionMap.remove(port);
 		}
 		
-		private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(4096);
+		private ByteBuffer sendBuffer = ByteBuffer.allocate(4096);
 		
 		@Override
 		public synchronized void accept(RBTPPacket packet) {
@@ -117,9 +117,13 @@ public class NetworkManager {
 			packet.encode(sendBuffer);
 			sendBuffer.flip();
 			
+			System.out.println("NetworkManager: sending packet seq: " + packet.sequenceNumber() + ", dest: " + packet.address);
+			
 			try {
-				channel.send(sendBuffer, packet.address.getAddress());
+				while(channel.send(sendBuffer, packet.address.getAddress()) == 0)
+					System.out.println("NetworkManager: FAILED TO WRITE BYTES!");
 			} catch(IOException exc) {
+				exc.printStackTrace();
 				throw new RuntimeException(exc);
 			}
 		}
@@ -135,6 +139,7 @@ public class NetworkManager {
 			
 			while(true) {
 				try {
+					buffer.clear();
 					SocketAddress address = channel.receive(buffer);
 					buffer.flip();
 					
@@ -142,20 +147,24 @@ public class NetworkManager {
 					try {
 						packet.decode(buffer);
 					} catch(Exception exc) {
+						exc.printStackTrace();
 						checksumFailCount++;
+						System.out.println("NetworkManager: FAILED CHECKSUM!");
 						continue;
-					}					
+					}
 					
-					ConnectionInfo connection = connectionMap.get(packet.destinationPort());
+					ConnectionInfo connection = connectionMap.get((short)packet.destinationPort());
 					if(connection == null) {
 						noMappingFoundCount++;
+						System.out.println("NetworkManager: no mapping found for port " + packet.destinationPort());
+						packet.destroy();
 						continue;
 					}
 					
 					packet.address = new RBTPSocketAddress((InetSocketAddress)address, packet.sourcePort());
+					System.out.println("NetworkManager: received packet seq: " + packet.sequenceNumber() + ", destPort: " + packet.destinationPort() + ", source: " + packet.address);
 					
-					if(connection.packetReceived != null)
-						connection.packetReceived.accept(packet);
+					connection.packetReceived.accept(packet);
 				}
 				catch(Exception exc) {
 					exc.printStackTrace();

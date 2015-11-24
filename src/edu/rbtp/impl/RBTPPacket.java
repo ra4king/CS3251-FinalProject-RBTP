@@ -19,35 +19,35 @@ class RBTPPacket {
 	private ByteBuffer metadata;
 	private ByteBuffer payload;
 	
-	public short sourcePort() {
-		return sourcePort;
+	public int sourcePort() {
+		return (int)sourcePort & 0xFFFF;
 	}
 	
 	public void sourcePort(short sourcePort) {
 		this.sourcePort = sourcePort;
 	}
 	
-	public short destinationPort() {
-		return destinationPort;
+	public int destinationPort() {
+		return (int)destinationPort & 0xFFFF;
 	}
 	
 	public void destinationPort(short destinationPort) {
 		this.destinationPort = destinationPort;
 	}
 	
-	public int sequenceNumber() {
-		return sequenceNumber;
+	public long sequenceNumber() {
+		return (long)sequenceNumber & 0xFFFFFFFFL;
 	}
 	
 	public void sequenceNumber(int sequenceNumber) {
 		this.sequenceNumber = sequenceNumber;
 	}
 	
-	public short headerSize() {
+	public int headerSize() {
 		if(metadata != null && metadata.capacity() % 4 != 0)
 			throw new IllegalStateException("metadata capacity must be divisible by four");
 		
-		return (short)(4 + (metadata == null ? 0 : metadata.capacity() / 4));
+		return 4 + (metadata == null ? 0 : metadata.capacity() / 4);
 	}
 	
 	public boolean syn() {
@@ -106,8 +106,12 @@ class RBTPPacket {
 		flags |= scale & 0xF;
 	}
 	
-	public short receiveWindow() {
-		return receiveWindow;
+	public short flags() {
+		return flags;
+	}
+	
+	public int receiveWindow() {
+		return (int)receiveWindow & 0xFFFF;
 	}
 	
 	public void receiveWindow(short receiveWindow) {
@@ -130,7 +134,6 @@ class RBTPPacket {
 		this.payload = payload;
 	}
 	
-	
 	public void decode(ByteBuffer buffer) {
 		sourcePort = buffer.getShort();
 		destinationPort = buffer.getShort();
@@ -144,15 +147,19 @@ class RBTPPacket {
 		
 		receiveWindow = buffer.getShort();
 		
-		metadata = BufferPool.getBuffer((headerSize - 4) * 4);
-		for(int i = 0; i < metadata.capacity(); i += 4) {
-			metadata.putInt(i, buffer.getInt());
+		if(headerSize - 4 > 0) {
+			metadata = BufferPool.getBuffer((headerSize - 4) * 4);
+			for(int i = 0; i < metadata.capacity(); i += 4) {
+				metadata.putInt(buffer.getInt());
+			}
+			metadata.flip();
 		}
-		metadata.flip();
 		
-		payload = BufferPool.getBuffer(buffer.remaining());
-		payload.put(buffer);
-		payload.flip();
+		if(buffer.remaining() > 0) {
+			payload = BufferPool.getBuffer(buffer.remaining());
+			payload.put(buffer);
+			payload.flip();
+		}
 		
 		if(checksum() != checksum) {
 			destroy();
@@ -161,13 +168,13 @@ class RBTPPacket {
 	}
 	
 	public void encode(ByteBuffer buffer) {
-		buffer.putShort(sourcePort());
-		buffer.putShort(destinationPort());
-		buffer.putInt(sequenceNumber());
-		buffer.putShort(headerSize());
+		buffer.putShort((short)sourcePort());
+		buffer.putShort((short)destinationPort());
+		buffer.putInt((int)sequenceNumber());
+		buffer.putShort((short)headerSize());
 		buffer.putShort(flags);
 		buffer.putShort(checksum());
-		buffer.putShort(receiveWindow());
+		buffer.putShort((short)receiveWindow());
 		if(metadata != null) {
 			metadata.clear(); // does not actually clear data, only resets position and limit
 			buffer.put(metadata);
@@ -200,22 +207,24 @@ class RBTPPacket {
 	public short checksum() {
 		int checksum = 0xFFFF;
 		
-		checksum = calculateChecksum(checksum, sourcePort());
-		checksum = calculateChecksum(checksum, destinationPort());
+		checksum = calculateChecksum(checksum, (short)sourcePort());
+		checksum = calculateChecksum(checksum, (short)destinationPort());
 		checksum = calculateChecksum(checksum, (short)(sequenceNumber() >>> 16));
 		checksum = calculateChecksum(checksum, (short)sequenceNumber());
-		checksum = calculateChecksum(checksum, headerSize());
+		checksum = calculateChecksum(checksum, (short)headerSize());
 		checksum = calculateChecksum(checksum, flags);
 		checksum = calculateChecksum(checksum, (short)0);
-		checksum = calculateChecksum(checksum, receiveWindow());
+		checksum = calculateChecksum(checksum, (short)receiveWindow());
 		
 		if(metadata != null) {
+			//metadata.clear();
 			for(int i = 0; i < metadata.capacity(); i++) {
 				checksum = calculateChecksum(checksum, metadata.get(i));
 			}
 		}
 		
 		if(payload != null) {
+			payload.clear();
 			for(int i = 0; i < payload.capacity(); i++) {
 				checksum = calculateChecksum(checksum, payload.get(i));
 			}
@@ -225,7 +234,7 @@ class RBTPPacket {
 	}
 	
 	private int calculateChecksum(int checksum, short value) {
-		checksum = calculateChecksum(checksum, (byte)((value & 0xFF00) >>> 8));
+		checksum = calculateChecksum(checksum, (byte)(value >>> 8));
 		return calculateChecksum(checksum, (byte)(value & 0xFF));
 	}
 	
