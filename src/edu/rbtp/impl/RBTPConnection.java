@@ -58,7 +58,7 @@ public class RBTPConnection implements Bindable {
 	
 	private static Random rng = new Random();
 	
-	public void connect(RBTPSocketAddress address) throws IOException {
+	public synchronized void connect(RBTPSocketAddress address) throws IOException {
 		if(remoteAddress != null)
 			throw new IllegalStateException("Already connected.");
 		
@@ -88,21 +88,16 @@ public class RBTPConnection implements Bindable {
 		ist.setName("RBTP Input Stream Thread port: " + bindingInterface.getPort());
 		ist.start();
 		
-		synchronized(this) {
-			while(state != RBTPConnectionState.ESTABLISHED && state != RBTPConnectionState.CLOSED) {
-				try {
-					this.wait(1000000); // 1 second
-				}
-				catch(InterruptedException exc) {
-				}
+		while(state != RBTPConnectionState.ESTABLISHED && state != RBTPConnectionState.CLOSED) {
+			try {
+				this.wait(100);
 			}
-			
-			System.out.println("SERVER: Done waiting already?");
+			catch(InterruptedException exc) {}
 		}
 		
 		if(state != RBTPConnectionState.ESTABLISHED) {
 			close();
-			throw new IOException("Connect failed.");
+			throw new IOException("Connect failed. state: " + state);
 		}
 	}
 	
@@ -140,6 +135,27 @@ public class RBTPConnection implements Bindable {
 		Thread ist = new Thread(inputStreamThread);
 		ist.setName("RBTP Input Stream Thread port: " + bindingInterface.getPort());
 		ist.start();
+		
+		new Thread(() -> {
+			while(ost.isAlive()) {
+				try {
+					ost.join();
+				}
+				catch(Exception exc) {
+				}
+			}
+			
+			while(ist.isAlive()) {
+				try {
+					ist.join();
+				}
+				catch(Exception exc) {
+				}
+			}
+			
+			System.out.println("CONNECTION: Unbinding.");
+			bindingInterface.unbind();
+		}).start();
 		
 		System.out.println("SERVER: Accepted SYN, sending SYN-CHA, seq: " + chaPacket.sequenceNumber() + ", RandNum: " + randValue);
 	}
@@ -315,6 +331,13 @@ public class RBTPConnection implements Bindable {
 			while(true) {
 				try {
 					RBTPPacket packet = packetsQueue.poll(TIMEOUT, TimeUnit.MILLISECONDS);
+					
+					if(requestClose) { // TODO: not the right way to handle close, need to wait for all data to finish coming in
+						System.out.println("CONNECTION: closed, InputStreamThread exiting.");
+						state = RBTPConnectionState.CLOSED;
+						break;
+					}
+					
 					if(packet == null) {
 						// outputStreamThread.acceptAck(null); OutputStreamThread already polls until TIMEOUT
 						timeoutCount++;
@@ -328,7 +351,7 @@ public class RBTPConnection implements Bindable {
 								state == RBTPConnectionState.SYN_RCVD) {
 							if(initFinlastPacket != null) {
 								System.out.println("CONNECTION: Timeout! Resending last init/fin packet");
-								//sendPacket.accept(initFinlastPacket);
+								sendPacket.accept(initFinlastPacket);
 							}
 							else {
 								System.out.println("CONNECTION: Init Fin Packet null!");
@@ -342,10 +365,10 @@ public class RBTPConnection implements Bindable {
 						if(packet.cha()) {
 							if(packet.syn()) {
 								if(state == RBTPConnectionState.SYN_SENT) {
-									sendPacket.accept(calculateChallenge(packet));
+									sendPacket.accept(initFinlastPacket = calculateChallenge(packet));
 									state = RBTPConnectionState.CHA_ACK_SENT;
 								} else {
-									System.out.println("CONNECTION: Received SYN-CHA while not in SYN_SENT?");
+									System.out.println("CONNECTION: Received SYN-CHA while not in SYN_SENT? state = " + state);
 								}
 							}
 							else if(packet.ack()) {
@@ -361,6 +384,7 @@ public class RBTPConnection implements Bindable {
 									ackPacket.ack(true);
 									setWindowSize(ackPacket);
 									sendPacket.accept(ackPacket);
+									initFinlastPacket = ackPacket;
 									
 									state = RBTPConnectionState.ESTABLISHED;
 								}
@@ -368,6 +392,8 @@ public class RBTPConnection implements Bindable {
 						}
 						
 						if(packet.ack()) {
+							initFinlastPacket = null;
+							
 							if(state == RBTPConnectionState.CHA_ACK_SENT) {
 								System.out.println("CONNECTION: server accepted challenge, connection established!");
 								state = RBTPConnectionState.ESTABLISHED;
@@ -376,11 +402,6 @@ public class RBTPConnection implements Bindable {
 					}
 				} catch(Exception exc) {
 					exc.printStackTrace();
-				}
-				
-				if(requestClose) {
-					System.out.println("CONNECTION: closed, InputStreamThread exiting.");
-					break;
 				}
 			}
 		}

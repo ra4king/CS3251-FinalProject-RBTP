@@ -100,10 +100,10 @@ public class RBTPServer implements Bindable {
 						try {
 							Thread.sleep(100);
 						} catch(Exception exc) {}
-						
-						if(newConnection.isConnected())
-							acceptHandler.accept(newConnection);
 					}
+					
+					if(newConnection.isConnected())
+						acceptHandler.accept(newConnection);
 				}).start();
 			} else if(clientBindingInterface.getPacketReceivedConsumer() != null) {
 				clientBindingInterface.getPacketReceivedConsumer().accept(packet);
