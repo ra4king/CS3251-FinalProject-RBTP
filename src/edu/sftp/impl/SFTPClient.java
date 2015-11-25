@@ -32,6 +32,10 @@ public class SFTPClient {
     /**
      * Constructor for SFTPClient.
      *
+     * TODO: Switch to use RBTP sockets
+     *
+     * TODO: Note we can get rid of DataStreams when using ByteBuffers in RBTP
+     *
      * @param port          - Port on which SFTPClient is bound
      * @param netEmuIP      - IP address NetEmu is running on
      * @param netEmuPort    - Port NetEmu is bound to
@@ -41,10 +45,18 @@ public class SFTPClient {
         this.netEmuIP = netEmuIP;
         this.netEmuPort = netEmuPort;
 
-        // TODO how can we get this working with NetEmu support?
         socket = new Socket(netEmuIP, netEmuPort);
         output = new DataOutputStream(socket.getOutputStream());
         input = new DataInputStream(socket.getInputStream());
+    }
+
+    /**
+     * Requests that RBTP use the provided window size.
+     *
+     * @param windowSize    - proposed window size
+     */
+    public synchronized void setWindowSize(int windowSize) {
+        // TODO: Implement when RBTP sockets used
     }
 
     /**
@@ -76,13 +88,13 @@ public class SFTPClient {
     /**
      * Fetches a file from the SFTP server via GET.
      *
+     * TODO - Switch to use RBTP sockets
+     *
      * @param filename    - the file to GET
      * @return the requested file, in bytes.
-     * @throws FileNotFoundException if the file is not found at the server.
      * @throws IOException if the connection is lost.
      */
-    public byte[] get(String filename) throws FileNotFoundException, IOException {
-        // TODO switch to RBTP (Bytestream)
+    public byte[] get(String filename) throws IOException {
         byte getRequest[] = SFTP.buildMessage(SFTP.GET, filename.getBytes("UTF-8"));
         byte response[];
         int responseLength;

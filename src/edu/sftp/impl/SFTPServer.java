@@ -11,12 +11,8 @@ import java.nio.file.Paths;
 
 /**
  * TODO Documentation
- * TODO ex: SFTP server commands (disconnect, window)
  *
- * Note that this currently runs on top of TCP.
- * TODO - Change to run on top of RBTP.
- *
- * @author Evan
+ * @author Evan Bailey
  */
 public class SFTPServer {
 
@@ -24,14 +20,17 @@ public class SFTPServer {
     private final String netEmuIP;
     private final int    netEmuPort;
 
-    // TODO - Switch to RBTP Socket
     private final ServerSocket serverSocket;
+
+    private boolean listen = true;
 
     private DataInputStream input;
     private DataOutputStream output;
 
     /**
      * Constructor for SFTPServer.
+     *
+     * TODO: Switch to RBTP sockets.
      *
      * @param port          - Port on which SFTPServer is bound
      * @param netEmuIP      - IP address NetEmu is running on
@@ -42,42 +41,70 @@ public class SFTPServer {
         this.netEmuIP = netEmuIP;
         this.netEmuPort = netEmuPort;
 
-        // TODO how can we get this working with NetEmu support?
         serverSocket = new ServerSocket(port);
     }
 
     /**
-     * TODO Documentation
+     * Requests that RBTP use the provided window size.
      *
-     * @throws IOException
+     * @param windowSize    - proposed window size
      */
-    public void listen() throws IOException {
-        Socket clientSocket;
-
-        // TODO Documentation
-        System.out.println("Listening for connections");
-
-        while (true) {
-            clientSocket = serverSocket.accept();
-
-            new ClientHandler(clientSocket).run();
-        }
+    public synchronized void setWindowSize(int windowSize) {
+        // TODO: Implement when RBTP sockets used
     }
 
     /**
-     * TODO Documentation
+     * Alerts the server to stop accepting new connections.
+     *
+     * Note that any existing connections will stay alive until they close themselves.
+     */
+    public synchronized void close() {
+        listen = false;
+    }
+
+    /**
+     * Listens for connections.
+     *
+     * @throws IOException if one is encountered =.
+     */
+    public void listen() throws IOException {
+        Socket clientSocket;
+        Thread clientThread;
+
+        while (listen) {
+            clientSocket = serverSocket.accept();
+
+            clientThread = new Thread(new ClientHandler(clientSocket));
+            clientThread.setDaemon(false); // Any existing connections will finish before exiting
+            clientThread.start();
+        }
+
+        serverSocket.close();
+    }
+
+    /**
+     * TODO: Documentation
+     *
+     * TODO: Switch to RBTP sockets
+     *
+     * @author Evan Bailey
      */
     private class ClientHandler implements Runnable {
         Socket clientSocket;
         DataOutputStream output;
         DataInputStream input;
 
+        /**
+         * Constructor for ClientHandler.
+         *
+         * @param clientSocket  - connection to client
+         * @throws IOException if one is encountered.
+         */
         public ClientHandler(Socket clientSocket) throws IOException {
             this.clientSocket = clientSocket;
             output = new DataOutputStream(this.clientSocket.getOutputStream());
             input = new DataInputStream(this.clientSocket.getInputStream());
 
-            // TODO DEBUG
             System.out.println("Accepted client connection");
         }
 
@@ -112,9 +139,21 @@ public class SFTPServer {
             return response;
         }
 
+        private boolean handlePut(byte content[]) {
+            // TODO: Implement
+            // Put request received
+            // If file exists locally, respond err
+            // Else respond RSP
+            // Next message should be PUT
+            // If not, just err and return
+            // If put, get file and save locally knowing file doesnt exist
+            return false;
+        }
+
         /**
          * Handle the client connection
          */
+        @Override
         public void run() {
             int msgLength;
             byte opcode;
