@@ -9,9 +9,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import edu.rbtp.RBTPSocketAddress;
+import edu.rbtp.tools.BufferPool;
 
 /**
- * @author Roi Atalla, Evan Bailey
+ * @author Roi Atalla
  */
 public class NetworkManager {
 	private DatagramChannel channel;
@@ -109,7 +110,7 @@ public class NetworkManager {
 			connectionMap.remove(port);
 		}
 		
-		private ByteBuffer sendBuffer = ByteBuffer.allocate(4096);
+		private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(4096);
 		
 		@Override
 		public synchronized void accept(RBTPPacket packet) {
@@ -143,15 +144,18 @@ public class NetworkManager {
 					SocketAddress address = channel.receive(buffer);
 					buffer.flip();
 					
+					System.out.println("NetworkManager: Received packet!");
+					
 					RBTPPacket packet = new RBTPPacket();
 					try {
 						packet.decode(buffer);
 					} catch(Exception exc) {
-						exc.printStackTrace();
 						checksumFailCount++;
 						System.out.println("NetworkManager: FAILED CHECKSUM!");
 						continue;
 					}
+					
+					System.out.println(BufferPool.getBuffersCreatedCount() + " buffers created so far.");
 					
 					ConnectionInfo connection = connectionMap.get((short)packet.destinationPort());
 					if(connection == null) {

@@ -147,7 +147,7 @@ class RBTPPacket {
 		
 		receiveWindow = buffer.getShort();
 		
-		if(headerSize - 4 > 0) {
+		if(headerSize > 4) {
 			metadata = BufferPool.getBuffer((headerSize - 4) * 4);
 			for(int i = 0; i < metadata.capacity(); i += 4) {
 				metadata.putInt(buffer.getInt());
@@ -217,7 +217,7 @@ class RBTPPacket {
 		checksum = calculateChecksum(checksum, (short)receiveWindow());
 		
 		if(metadata != null) {
-			//metadata.clear();
+			metadata.clear();
 			for(int i = 0; i < metadata.capacity(); i++) {
 				checksum = calculateChecksum(checksum, metadata.get(i));
 			}

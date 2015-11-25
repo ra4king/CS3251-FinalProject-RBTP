@@ -2,7 +2,7 @@ package edu.rbtp.tools;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
+import java.util.HashSet;
 
 /**
  * @author Roi Atalla
@@ -10,24 +10,34 @@ import java.util.ArrayList;
 public class BufferPool {
 	private BufferPool() {}
 	
-	private static ArrayList<ByteBuffer> pool = new ArrayList<>();
+	private static HashSet<ByteBuffer> pool = new HashSet<>();
 	
 	private static int buffersCreated = 0;
 	
-	public synchronized int getBuffersCreatedCount() {
+	public static synchronized int getBuffersCreatedCount() {
 		return buffersCreated;
 	}
 	
 	public static synchronized ByteBuffer getBuffer(int size) {
 		ByteBuffer best = null;
 		for(ByteBuffer b : pool) {
-			if(b.capacity() >= size && b.capacity() < size * 3 &&  (best == null || b.capacity() < best.capacity()))
+			if(b.capacity() >= size && b.capacity() < size * 2 &&  (best == null || b.capacity() < best.capacity()))
 				best = b;
 		}
 		
 		if(best == null) {
 			best = ByteBuffer.allocate(size);
 			buffersCreated++;
+			System.out.println("CREATING NEW BUFFER. COUNT: " + buffersCreated);
+			
+			try {
+				throw new Exception();
+			} catch(Exception exc) {
+				exc.printStackTrace();
+			}
+		}
+		else {
+			pool.remove(best);
 		}
 		
 		best.clear();
@@ -37,6 +47,7 @@ public class BufferPool {
 	}
 	
 	public static synchronized void release(ByteBuffer buffer) {
-		pool.add(buffer);
+		if(buffer != null && !pool.contains(buffer))
+			pool.add(buffer);
 	}
 }

@@ -60,6 +60,11 @@ public class RBTPServer implements Bindable {
 			BindingInterface clientBindingInterface = clients.get(packet.address);
 			
 			if(clientBindingInterface == null) {
+				if(!packet.syn()) {
+					System.out.println("SERVER: Received non-SYN initial packet?!");
+					return;
+				}
+				
 				System.out.println("SERVER: New connection from " + packet.address);
 				
 				RBTPConnection newConnection = new RBTPConnection();
@@ -98,7 +103,7 @@ public class RBTPServer implements Bindable {
 				new Thread(() -> {
 					while(!newConnection.isConnected() && !newConnection.isClosed()) {
 						try {
-							Thread.sleep(100);
+							Thread.sleep(10);
 						} catch(Exception exc) {}
 					}
 					
