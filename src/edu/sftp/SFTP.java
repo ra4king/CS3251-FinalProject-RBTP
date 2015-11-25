@@ -3,7 +3,7 @@ package edu.sftp;
 import java.nio.ByteBuffer;
 
 /**
- * TODO - Documentation
+ * SFTP protocol definitions
  *
  * SFTP Message format
  * [data len][opcode][data ...]
@@ -26,45 +26,19 @@ public class SFTP {
 
 
     /**
-     * TODO Documentation
+     * Helper function to build an SFTP message.
+     *
      * NOTE: Maximum filesize of (2^32) bytes
      */
     public static byte[] buildMessage(byte opcode, byte content[]) {
-        int messageLength = 2 + 1 + content.length; // in bytes
-        ByteBuffer bbuff = ByteBuffer.allocate(messageLength);
+        int messageLength = 1 + content.length; // in bytes, opcode + content
+        ByteBuffer bbuff = ByteBuffer.allocate(4 + messageLength); // +4 makes room for length
 
-        bbuff.putShort(SFTP_PREFIX);
+        //bbuff.putShort(SFTP_PREFIX);
+        bbuff.putInt(messageLength);
         bbuff.put(opcode);
         bbuff.put(content);
 
         return bbuff.array();
     }
-
-    // /*
-    //  * Temporary for testing. comment out package if testing like this.
-    //  */
-    // public static void main(String args[]) {
-    //     byte packetBytes[];
-    //     String packetString = new String();
-    //     try {
-    //         Path path = Paths.get("..\\..\\..\\test\\hello-asm.txt");
-    //         packetBytes = Files.readAllBytes(path);
-    //         System.out.println("file: " + path.toRealPath().toString());
-    //         System.out.println("size: " + Files.size(path) + " bytes");
-    //         System.out.println("raw bytes:");
-    //         for (byte b : packetBytes) {
-    //             System.out.print(b + "\t");
-    //         }
-    //         Path path2 = Paths.get("..\\..\\..\\test\\hello-asm2.txt");
-    //         path2 = Files.createFile(path2);
-    //         File file = path2.toFile();
-    //         FileOutputStream fouts = new FileOutputStream(file);
-    //         fouts.write(packetBytes);
-    //         fouts.close();
-    //     }
-    //     catch (Exception ex) {
-    //         ex.printStackTrace();
-    //     }
-    // }
-
 }
