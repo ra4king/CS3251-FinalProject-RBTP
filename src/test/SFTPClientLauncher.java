@@ -56,6 +56,11 @@ public class SFTPClientLauncher {
             content = new byte[response.length - 1];
             opcode = response[0];
 
+            // Get content
+            for (int i = 1; i < response.length; i++) {
+                content[i - 1] = response[i];
+            }
+
             // Successful GET
             if (SFTP.RSP == opcode) {
                 System.out.println("Successfully received file from server.");
@@ -76,11 +81,14 @@ public class SFTPClientLauncher {
                 System.out.println("Server returned an error message:");
                 errorMessage = new String(content, "UTF-8");
 
-                System.out.println("> errorMessage");
+                System.out.println("> errorMessage: " + errorMessage);
             }
         }
         catch (IOException ioex) {
             System.out.println("IOException encountered while attempting GET, aborting.");
+
+            // TODO: Temp
+            ioex.printStackTrace();
         }
     }
 
@@ -105,7 +113,7 @@ public class SFTPClientLauncher {
         SFTPClient client = null;
 
         if (args.length != 3) {
-            System.out.println("Incorrect parameters. Usage: $ java SFTPClient X A P");
+            System.out.println("ERROR: Incorrect parameters. Usage: $ java SFTPClient X A P");
             System.exit(0);
         }
 
@@ -124,7 +132,7 @@ public class SFTPClientLauncher {
                  */
                 if (input.equalsIgnoreCase("connect")) {
                     if (connected) {
-                        System.out.println("Client already connected to server.");
+                        System.out.println("ERROR: Client already connected to server.");
                     }
                     else {
                         client = new SFTPClient(port, netEmuIP, netEmuPort);
@@ -156,11 +164,11 @@ public class SFTPClientLauncher {
                             changeWindowSize(client, inputArray[1]);
                         }
                         else {
-                            System.out.println("Incorrect usage, must match: window <windowsize>");
+                            System.out.println("ERROR: Incorrect usage, must match: window <windowsize>");
                         }
                     }
                     else {
-                        System.out.println("Client not currently connected.");
+                        System.out.println("ERROR: Client not currently connected.");
                     }
                 }
 
@@ -177,11 +185,11 @@ public class SFTPClientLauncher {
                             doGet(client, inputArray[1]);
                         }
                         else {
-                            System.out.println("Incorrect usage, must match: get <filename>");
+                            System.out.println("ERROR: Incorrect usage, must match: get <filename>");
                         }
                     }
                     else {
-                        System.out.println("Client not currently connected.");
+                        System.out.println("ERROR: Client not currently connected.");
                     }
                 }
 
@@ -197,7 +205,7 @@ public class SFTPClientLauncher {
                  * UNSUPPORTED COMMAND
                  */
                 else {
-                    System.out.println("Unsupported command.");
+                    System.out.println("ERROR: Unsupported command.");
                 }
             }
         }

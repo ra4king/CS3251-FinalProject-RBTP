@@ -100,9 +100,9 @@ public class SFTPClient {
         int responseLength;
 
         // Send GET
-        output.write(getRequest);
+        output.write(getRequest); // TODO: This fails after ONE GET (check after port to RBTP)
 
-        // Listen for response (IOException on timeout)
+        // Listen for response
         responseLength = input.readInt();
         response = new byte[responseLength];
 

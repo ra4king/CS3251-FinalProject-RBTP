@@ -1,8 +1,6 @@
 package test;
 
-import edu.sftp.impl.SFTPClient;
 import edu.sftp.impl.SFTPServer;
-import jdk.internal.util.xml.impl.Input;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -56,9 +54,12 @@ public class SFTPServerLauncher {
 
             System.out.println("Server established.");
 
+            // Listen for connections
+            server.listen();
+
             // Listen for input
             new InputManager(server).run();
-            
+
         } catch (ConnectException cex) {
             System.out.println("ERROR: Connection failed.");
             System.exit(0);
@@ -70,9 +71,9 @@ public class SFTPServerLauncher {
             System.out.println("ERROR: IOException encountered. Please restart and try again");
             System.exit(0);
         }
-        // TODO CATCH EVERYTHING EVER
     }
 
+    // TODO - This doesn;t work after some console output
     private static class InputManager implements Runnable {
         boolean run = true;
         Scanner scanner = new Scanner(System.in);

@@ -87,6 +87,8 @@ public class SFTPServer {
      *
      * TODO: Switch to RBTP sockets
      *
+     * TODO: If a file not found is requested first, IOException is throws for following gets
+     *
      * @author Evan Bailey
      */
     private class ClientHandler implements Runnable {
@@ -121,6 +123,7 @@ public class SFTPServer {
                     response = SFTP.buildMessage(SFTP.RSP, Files.readAllBytes(path));
                 }
                 else {
+                    // TODO for some reason, error message not being sent?
                     errorMessage = "File not found";
                     response = SFTP.buildMessage(SFTP.ERR, errorMessage.getBytes("UTF-8"));
                 }
