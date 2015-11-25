@@ -19,6 +19,14 @@ class RBTPPacket {
 	private ByteBuffer metadata;
 	private ByteBuffer payload;
 	
+	@Override
+	public boolean equals(Object o) {
+		if(!(o instanceof RBTPPacket))
+			return false;
+		RBTPPacket p = (RBTPPacket)o;
+		return this.sequenceNumber() == p.sequenceNumber();
+	}
+	
 	public int sourcePort() {
 		return (int)sourcePort & 0xFFFF;
 	}

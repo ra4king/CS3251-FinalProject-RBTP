@@ -48,20 +48,12 @@ public class RBTPSocket {
 		return connection != null && connection.isClosed();
 	}
 	
-	public long read(ByteBuffer buffer) {
-		return read(buffer, buffer.position(), buffer.remaining());
+	public int read(ByteBuffer buffer) {
+		return connection.read(buffer, blocking);
 	}
 	
-	public long read(ByteBuffer buffer, int offset, int length) {
-		return connection.read(buffer, offset, length, blocking);
-	}
-	
-	public long send(ByteBuffer buffer) {
-		return send(buffer, buffer.position(), buffer.remaining());
-	}
-	
-	public long send(ByteBuffer buffer, int offset, int length) {
-		return connection.send(buffer, offset, length, blocking);
+	public int write(ByteBuffer buffer) {
+		return connection.write(buffer, blocking);
 	}
 	
 	public boolean isClosed() {

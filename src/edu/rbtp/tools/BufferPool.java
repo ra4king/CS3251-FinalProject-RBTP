@@ -10,7 +10,7 @@ import java.util.HashSet;
 public class BufferPool {
 	private BufferPool() {}
 	
-	private static HashSet<ByteBuffer> pool = new HashSet<>();
+	private static HashSet<ByteBufferWrapper> pool = new HashSet<>();
 	
 	private static int buffersCreated = 0;
 	
@@ -19,35 +19,54 @@ public class BufferPool {
 	}
 	
 	public static synchronized ByteBuffer getBuffer(int size) {
-		ByteBuffer best = null;
-		for(ByteBuffer b : pool) {
-			if(b.capacity() >= size && b.capacity() < size * 2 &&  (best == null || b.capacity() < best.capacity()))
+		ByteBufferWrapper best = null;
+		for(ByteBufferWrapper b : pool) {
+			if(b.buffer.capacity() == size) {
 				best = b;
+			}
 		}
 		
 		if(best == null) {
-			best = ByteBuffer.allocate(size);
+			best = new ByteBufferWrapper(ByteBuffer.allocate(size));
 			buffersCreated++;
 			System.out.println("CREATING NEW BUFFER. COUNT: " + buffersCreated);
-			
-			try {
-				throw new Exception();
-			} catch(Exception exc) {
-				exc.printStackTrace();
-			}
 		}
 		else {
 			pool.remove(best);
 		}
 		
-		best.clear();
-		best.order(ByteOrder.BIG_ENDIAN);
+		best.buffer.clear();
+		best.buffer.order(ByteOrder.BIG_ENDIAN);
 		
-		return best;
+		return best.buffer;
 	}
 	
 	public static synchronized void release(ByteBuffer buffer) {
-		if(buffer != null && !pool.contains(buffer))
-			pool.add(buffer);
+		ByteBufferWrapper wrapper = new ByteBufferWrapper(buffer);
+		
+		if(buffer != null && !pool.contains(wrapper))
+			pool.add(wrapper);
+	}
+	
+	// This is so buffers are checked for equal by instance, not by contents
+	private static class ByteBufferWrapper {
+		private ByteBuffer buffer;
+		
+		ByteBufferWrapper(ByteBuffer buffer) {
+			this.buffer = buffer;
+		}
+		
+		@Override
+		public int hashCode() {
+			return buffer.hashCode();
+		}
+		
+		@Override
+		public boolean equals(Object o) {
+			if(!(o instanceof ByteBufferWrapper))
+				return false;
+			ByteBufferWrapper wrapper = (ByteBufferWrapper)o;
+			return this.buffer == wrapper.buffer;
+		}
 	}
 }
