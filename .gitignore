@@ -1,7 +1,4 @@
-src/test/
 res/
 .idea/
 out/
 *.iml
-*.class
-.git/

@@ -63,4 +63,8 @@ public class RBTPSocket {
 	public void close() {
 		connection.close();
 	}
+	
+	public RBTPConnection getConnection() {
+		return connection;
+	}
 }

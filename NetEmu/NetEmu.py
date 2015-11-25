@@ -4,10 +4,12 @@
 #
 # Based on code by Flavio Castro
 # Updated for CS 3251, Spring 2015
+# Updated by Saikrishna Arcot
 
 #
 from random import randint
-import Queue,thread,time
+import Queue,time
+import threading
 import socket,sys,signal
 import optparse
 import binascii
@@ -16,20 +18,24 @@ from optparse import Option, OptionValueError
 #import numpy as np
 
 PSINT=0.5
+cv=threading.Condition(threading.Lock())
 
 def signal_handler(signal, frame):
     print "Shutting down the emulator."
     sys.exit(0)
 
 def Main():   
-    sock.setblocking(0)
     try:
-        thread.start_new_thread(ReceivePacket,())
-        thread.start_new_thread(ProcessQueue,())
+        receivePacket = threading.Thread(target=ReceivePacket, args=())
+        receivePacket.daemon = True
+        receivePacket.start()
+        processQueue = threading.Thread(target=ProcessQueue, args=())
+        processQueue.daemon = True
+        processQueue.start()
     except:
         print "Error"
     while 1:
-        pass
+        time.sleep(1)
 
 def ReceivePacket():
     while 1:
@@ -45,11 +51,17 @@ def ReceivePacket():
                 packet=(corrupt(packet[0]),packet[1])  # corrupt
             elif (randint(1,100) < dupProb): 
                 print "Duplicating this packet"
+                cv.acquire()
                 queue.put(packet) # duplicate by adding twice to queue
+                cv.notify()
+                cv.release()
             if (randint(1,100) < dropProb):
                 print "Dropping this packet"
             else: 
+                cv.acquire()
                 queue.put(packet)
+                cv.notify()
+                cv.release()
         except socket.error,msg:
             continue
 
@@ -67,16 +79,21 @@ def corrupt(data):
 # for this demonstration.
 def ProcessQueue():
     while 1:
-        while not queue.empty():
-            packet=queue.get()
-            if (randint(1,100) < reorderProb): # put it back in the queue to reorder
-	        print "Reordering this packet"
-                queue.put(packet)
-                break
+        cv.acquire()
+        while queue.empty():
+            cv.wait()
+        packet=queue.get()
+        cv.release()
+        if (randint(1,100) < reorderProb): # put it back in the queue to reorder
+            print "Reordering this packet"
+            cv.acquire()
+            queue.put(packet)
+            cv.release()
+        else:
             PSINT=randint(0,delay)/1000.0
             if (PSINT > 0) :
-               print "Delaying this packet for:",PSINT
-            time.sleep(PSINT) # wait for a random delay time
+                print "Delaying this packet for:",PSINT
+                time.sleep(PSINT) # wait for a random delay time
             send(packet)
 
 def send(packet):
@@ -86,9 +103,9 @@ def send(packet):
     sock.sendto(packet[0],(ip,outport))
 
     # hexdump the data so that we can see what changed
-    print "packet sent to :", packet[1]
+    print "packet of length ", len(packet[0]), " sent to :", (ip,outport)
     hexvalue = binascii.hexlify(packet[0]) #.decode()
-    print ['0x'+hexvalue[i:i+2] for i in range(0, len(hexvalue),2)]
+    # print ['0x'+hexvalue[i:i+2] for i in range(0, len(hexvalue),2)]
 
 
 def check_prob(option,opt,x):
