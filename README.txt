@@ -18,6 +18,10 @@ Authors:
   ABOUT
 ---------
 
+Requirements:
+- java SE 8 or later
+- a machine that supports UTF-8 encoding (shouldn't be a problem)
+
 This section will describe the 2 protocols which have been implemented in this project.
 
  + Reliable Bytestream Transport Protocol (RBTP)
