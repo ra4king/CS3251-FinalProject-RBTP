@@ -1,8 +1,15 @@
 This file defines some test cases and their expected output.
 
+FxA client / server connection
 - Incorrect parameters for FxA Client, Server
 - Client cannot conenct to server (server not running at time client attempts to connect)
-- GET non-existing file from server
-- successful GET
-- PUT with non-existing file
-- successful PUT
+- Graceful disconnect for client and server
+  - Graceful disconnect when server is handling client
+
+FxA Command results
+  GET
+    - successful GET
+    - attempt to GET a file from server, file not found
+  PUT
+    - successful PUT
+    - attempt to PUT a file on server, file not found
