@@ -121,7 +121,22 @@ To create the jars, navigate to the 'out/' directory and open a command prompt t
   USAGE
 ---------
 
-TODO
+To run the server and client:
+    java -jar SimpleFTPServer.jar X A P
+    java -jar SimpleFTPClient.jar X A P
+
+Where X = UDP port to bind to, A = NetEmu address, P = NetEmu port
+
+Server commands:
+    window W  - sets the window size
+    terminate - closes the server
+
+Client commands:
+    connect    - client connects to the server
+    get F      - attempts to get file F from the server
+    put F      - attempts to put file F on the server
+    window W   - sets the window size
+    disconnect - disconnects the client from the server
 
 
 --------
