@@ -8,6 +8,8 @@ import java.util.HashSet;
  * @author Roi Atalla
  */
 public class BufferPool {
+	public static boolean PRINT_DEBUG = false;
+	
 	private BufferPool() {}
 	
 	private static HashSet<ByteBufferWrapper> pool = new HashSet<>();
@@ -29,7 +31,6 @@ public class BufferPool {
 		if(best == null) {
 			best = new ByteBufferWrapper(ByteBuffer.allocate(size));
 			buffersCreated++;
-			System.out.println("CREATING NEW BUFFER. COUNT: " + buffersCreated);
 		}
 		else {
 			pool.remove(best);

@@ -1,11 +1,17 @@
 package edu.rbtp.impl;
 
+import static edu.rbtp.tools.BufferPool.*;
+
 import java.util.HashMap;
 import java.util.function.Consumer;
 
 import edu.rbtp.RBTPSocketAddress;
 
 /**
+ *
+ * The Server implementation becomes the Bindable instead of the Connection. RBTPConnections then bind to this class
+ * instead of the NetworkManager. This allows each server to handle its own multiplexing.
+ * 
  * @author Roi Atalla
  */
 public class RBTPServer implements Bindable {
@@ -53,21 +59,31 @@ public class RBTPServer implements Bindable {
 		@Override
 		public void accept(RBTPPacket packet) {
 			if(acceptHandler == null || (closed && !clients.containsKey(packet.address))) {
-				System.out.println("SERVER: NOPE");
+				if(PRINT_DEBUG) {
+					System.out.println("SERVER: NOPE");
+				}
 				return;
 			}
 			
-			System.out.println("SERVER: Received packet (seq: " + packet.sequenceNumber() + ") from " + packet.address);
+			if(PRINT_DEBUG) {
+				System.out.println("SERVER: Received packet (seq: " + packet.sequenceNumber() + ") from " + packet.address);
+			}
 			
+			// Check if this packet came from someone we know already
 			BindingInterface clientBindingInterface = clients.get(packet.address);
 			
+			// If no binding exists, it's a spurious packet or a SYN from a new connection
 			if(clientBindingInterface == null) {
 				if(!packet.syn()) {
-					System.out.println("SERVER: Received non-SYN initial packet?!");
+					if(PRINT_DEBUG) {
+						System.out.println("SERVER: Received non-SYN initial packet?!");
+					}
 					return;
 				}
 				
-				System.out.println("SERVER: New connection from " + packet.address);
+				if(PRINT_DEBUG) {
+					System.out.println("SERVER: New connection from " + packet.address);
+				}
 				
 				RBTPConnection newConnection = new RBTPConnection();
 				BindingInterface newBindingInterface = new BindingInterface() {
@@ -78,6 +94,10 @@ public class RBTPServer implements Bindable {
 						return serverBindingInterface.getPort();
 					}
 					
+					/**
+					 * the packet send consumer is the same as the one NetworkManager gave us.
+					 * all connections share the same sender
+					 */
 					@Override
 					public Consumer<RBTPPacket> getPacketSendConsumer() {
 						return serverBindingInterface.getPacketSendConsumer();
@@ -96,12 +116,19 @@ public class RBTPServer implements Bindable {
 					@Override
 					public void unbind() {
 						clients.remove(packet.address);
+						
+						if(clients.isEmpty()) {
+							serverBindingInterface.unbind();
+						}
 					}
 				};
 				clients.put(packet.address, newBindingInterface);
 				newConnection.bind(newBindingInterface);
 				newConnection.accept(packet);
 				
+				// Start a small thread that waits until the connection is fully made until it sends the connection up
+				// to the user for accept()
+				// If a connection fails, it fails silently without the user even knowing one was attempted
 				new Thread(() -> {
 					while(!newConnection.isConnected() && !newConnection.isClosed()) {
 						try {
