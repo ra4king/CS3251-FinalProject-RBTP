@@ -4,6 +4,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 /**
+ * An RBTPSocketAddress consists of two parts: the InetSocketAddress of the remote NetworkManager, and the RBTP port.
+ * 
  * @author Roi Atalla
  */
 public class RBTPSocketAddress {

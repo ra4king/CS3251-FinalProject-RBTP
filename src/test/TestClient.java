@@ -15,7 +15,7 @@ public class TestClient implements Runnable {
 	public static void main(String[] args) throws Exception {
 		NetworkManager.init(60);
 		
-		for(int i = 0; i < 1; i++) {
+		for(int i = 0; i < 10; i++) {
 			new Thread(new TestClient(1234 * i)).start();
 		}
 	}
@@ -86,8 +86,9 @@ public class TestClient implements Runnable {
 					}
 				}
 				
-				if(match)
+				if(match) {
 					System.out.println("TEST: ALL MATCH SO FAR! Remaining to read: " + count);
+				}
 				
 				buffer.compact();
 			}
@@ -97,7 +98,10 @@ public class TestClient implements Runnable {
 			while(!socket.isClosed()) {
 				Thread.sleep(10);
 			}
-		} catch(Exception exc) {
+			
+			System.out.println("Closed.");
+		}
+		catch(Exception exc) {
 			exc.printStackTrace();
 		}
 	}

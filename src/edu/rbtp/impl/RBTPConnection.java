@@ -1,5 +1,7 @@
 package edu.rbtp.impl;
 
+import static edu.rbtp.tools.BufferPool.*;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -77,7 +79,7 @@ public class RBTPConnection implements Bindable {
 	/**
 	 * The connect sends the SYN packet and initiates the connection to the remote address.
 	 *
-	 * @param address
+	 * @param address the remote address to connect to
 	 * @throws IOException
 	 */
 	public synchronized void connect(RBTPSocketAddress address) throws IOException {
@@ -121,9 +123,9 @@ public class RBTPConnection implements Bindable {
 	 * This is called by the server implementation. The received SYN packet is passed to the accept method
 	 * and the SYN-CHA packet is sent back.
 	 *
-	 * @param synPacket
+	 * @param synPacket the SYN packet the server received.
 	 */
-	public void accept(RBTPPacket synPacket) {
+	void accept(RBTPPacket synPacket) {
 		state = RBTPConnectionState.SYN_RCVD;
 		
 		remoteAddress = synPacket.address;
@@ -148,7 +150,9 @@ public class RBTPConnection implements Bindable {
 		
 		startNetworkThreads();
 		
-		System.out.println("SERVER: Accepted SYN, sending SYN-CHA, seq: " + chaPacket.sequenceNumber() + ", RandNum: " + randValue);
+		if(PRINT_DEBUG) {
+			System.out.println("SERVER: Accepted SYN, sending SYN-CHA, seq: " + chaPacket.sequenceNumber() + ", RandNum: " + randValue);
+		}
 	}
 	
 	private void startNetworkThreads() {
@@ -178,7 +182,9 @@ public class RBTPConnection implements Bindable {
 				}
 			}
 			
-			System.out.println("CONNECTION: Unbinding.");
+			if(PRINT_DEBUG) {
+				System.out.println("CONNECTION: Unbinding.");
+			}
 			bindingInterface.unbind();
 		}).start();
 	}
@@ -212,7 +218,9 @@ public class RBTPConnection implements Bindable {
 		if(block) {
 			int read;
 			while((read = inputStreamThread.read(data)) == 0 && !isClosed()) {
-				System.out.println("READ: Waiting for data to read...");
+				if(PRINT_DEBUG) {
+					System.out.println("READ: Waiting for data to read...");
+				}
 				try {
 					Thread.sleep(100);
 				}
@@ -235,8 +243,9 @@ public class RBTPConnection implements Bindable {
 	 *
 	 * @param data writes data from the remaining space
 	 * @return the number of bytes written
+	 * @throws IOException
 	 */
-	public int write(ByteBuffer data) {
+	public int write(ByteBuffer data) throws IOException {
 		return outputStreamThread.write(data);
 	}
 	
@@ -291,13 +300,13 @@ public class RBTPConnection implements Bindable {
 		/**
 		 * Write as much data as can fit in the outputBuffer
 		 */
-		public int write(ByteBuffer data) {
+		public int write(ByteBuffer data) throws IOException {
 			if(nextSequenceNumber == -1) {
 				throw new IllegalStateException("OutputStreamThread not initialized.");
 			}
 			
 			if(requestClose || isClosed()) {
-				throw new IllegalStateException("Socket is closed or closing.");
+				throw new IOException("Socket is closed or closing.");
 			}
 			
 			synchronized(outputBuffer) {
@@ -315,7 +324,10 @@ public class RBTPConnection implements Bindable {
 			
 			while(true) {
 				if(state == RBTPConnectionState.CLOSED) {
-					System.out.println("CONNECTION (OST): Closed, OutputStreamThread exiting.");
+					if(PRINT_DEBUG) {
+						System.out.println("CONNECTION (OST): Closed, OutputStreamThread exiting.");
+					}
+					
 					break;
 				}
 				
@@ -324,7 +336,10 @@ public class RBTPConnection implements Bindable {
 					synchronized(outputBuffer) {
 						if(outputBuffer.position() > 0) {
 							if(remoteReceiveWindowSize > 0) {
-								System.out.println("CONNECTION (OST): Sending data, buffer pos: " + outputBuffer.position());
+								if(PRINT_DEBUG) {
+									System.out.println("CONNECTION (OST): Sending data, buffer pos: " + outputBuffer.position());
+								}
+								
 								int prevPosition = outputBuffer.position();
 								
 								outputBuffer.flip();
@@ -370,7 +385,9 @@ public class RBTPConnection implements Bindable {
 								state = RBTPConnectionState.LAST_ACK;
 							}
 							
-							System.out.println("CONNECTION (OST): Close requested, sent FIN. seq: " + nextSequenceNumber + ", state: " + state);
+							if(PRINT_DEBUG) {
+								System.out.println("CONNECTION (OST): Close requested, sent FIN. seq: " + nextSequenceNumber + ", state: " + state);
+							}
 						}
 					}
 				}
@@ -382,7 +399,10 @@ public class RBTPConnection implements Bindable {
 						// if there are un-ACK-ed packets and the timeout was reached, resend all the packets
 						if(lastSent.size() > 0) {
 							if(System.currentTimeMillis() - prevResendTime >= TIMEOUT * 2) {
-								System.out.println("CONNECTION (OST): Timeout! Resending " + lastSent.size() + " packets.");
+								if(PRINT_DEBUG) {
+									System.out.println("CONNECTION (OST): Timeout! Resending " + lastSent.size() + " packets.");
+								}
+								
 								lastSent.forEach(sendPacket); // resend all
 								prevResendTime = System.currentTimeMillis();
 							}
@@ -390,14 +410,20 @@ public class RBTPConnection implements Bindable {
 						
 						timeoutCount++;
 						if(timeoutCount >= 100) {
-							System.out.println("CONNECTION (OST): Consecutive timeout count limit reached. Closing...");
+							if(PRINT_DEBUG) {
+								System.out.println("CONNECTION (OST): Consecutive timeout count limit reached. Closing...");
+							}
+							
 							state = RBTPConnectionState.CLOSED;
 						}
 					} else {
 						timeoutCount = 0;
 						
 						if(packet.metadata() == null) {
-							System.out.println("CONNECTION (OST): no metadata ack? " + packet.ack() + ", seq: " + packet.sequenceNumber());
+							if(PRINT_DEBUG) {
+								System.out.println("CONNECTION (OST): no metadata ack? " + packet.ack() + ", seq: " + packet.sequenceNumber());
+							}
+							
 							continue;
 						}
 						
@@ -418,8 +444,10 @@ public class RBTPConnection implements Bindable {
 								relativeLoc = (int)(0x100000000L + relativeLoc);
 							}
 							
-							System.out.println("CONNECTION (OST): Received ACK on " + ack + ", relativeLoc: " + relativeLoc +
-							                     ", windowFirstSeqNum: " + windowFirstSequenceNumber + ", nextSeqNum: " + nextSequenceNumber);
+							if(PRINT_DEBUG) {
+								System.out.println("CONNECTION (OST): Received ACK on " + ack + ", relativeLoc: " + relativeLoc +
+										                   ", windowFirstSeqNum: " + windowFirstSequenceNumber + ", nextSeqNum: " + nextSequenceNumber);
+							}
 							
 							if(relativeLoc == 0 || relativeLoc >= 0 && relativeLoc < totalSent) {
 								boolean found = false;
@@ -427,7 +455,10 @@ public class RBTPConnection implements Bindable {
 								for(int j = 0; j < lastSent.size(); j++) {
 									if(lastSent.get(j).sequenceNumber() == ack) {
 										found = true;
-										System.out.println("CONNECTION (OST): Successfully ACK-ed seq " + ack);
+										if(PRINT_DEBUG) {
+											System.out.println("CONNECTION (OST): Successfully ACK-ed seq " + ack);
+										}
+										
 										RBTPPacket removedPacket = lastSent.remove(j);
 										if(removedPacket.fin()) {
 											if(state == RBTPConnectionState.FIN_WAIT_1) {
@@ -438,7 +469,9 @@ public class RBTPConnection implements Bindable {
 												state = RBTPConnectionState.TIMED_WAIT;
 											}
 											
-											System.out.println("CONNECTION (OST): Received ACK for FIN. Output stream is done! state: " + state);
+											if(PRINT_DEBUG) {
+												System.out.println("CONNECTION (OST): Received ACK for FIN. Output stream is done! state: " + state);
+											}
 										}
 										removedPacket.destroy();
 										break;
@@ -446,7 +479,9 @@ public class RBTPConnection implements Bindable {
 								}
 								
 								if(!found) {
-									System.out.println("CONNECTION (OST): Already acked: " + ack + ", relativeLoc: " + relativeLoc + ", totalSent: " + totalSent);
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (OST): Already acked: " + ack + ", relativeLoc: " + relativeLoc + ", totalSent: " + totalSent);
+									}
 								}
 							}
 						}
@@ -556,7 +591,9 @@ public class RBTPConnection implements Bindable {
 			
 			byte n = packet.metadata().get(7);
 			
-			System.out.println("CONNECTION (IST): Received SYN-CHA response! RandNum: " + randNumber);
+			if(PRINT_DEBUG) {
+				System.out.println("CONNECTION (IST): Received SYN-CHA response! RandNum: " + randNumber);
+			}
 			
 			RBTPPacket challengeResponse = new RBTPPacket();
 			setupPacket(challengeResponse, maxWindowSize);
@@ -567,6 +604,7 @@ public class RBTPConnection implements Bindable {
 			ByteBuffer metadata = BufferPool.getBuffer(8);
 			challengeResponse.metadata(metadata);
 			
+			// Keeps trying by incrementing the received random number until the header starts with the required number of zeroes.
 			long time = System.nanoTime();
 			do {
 				for(int i = 0; i < 7; i++) {
@@ -576,11 +614,16 @@ public class RBTPConnection implements Bindable {
 				
 				randNumber = (randNumber + 1) & 0xFFFFFFFFFFFFFFL;
 			} while(!sha1BeginsWithNZeroes(challengeResponse, n));
-			System.out.println("CONNECTION (IST): Calculate challenge took " + (System.nanoTime() - time) / 1000000 + " ms. New RandNum: " + randNumber);
+			if(PRINT_DEBUG) {
+				System.out.println("CONNECTION (IST): Calculate challenge took " + (System.nanoTime() - time) / 1000000 + " ms. New RandNum: " + randNumber);
+			}
 			
 			return challengeResponse;
 		}
 		
+		/**
+		 * Main read method: fills the buffer as much as it can and returns the number of bytes read.
+		 */
 		public int read(ByteBuffer buffer) {
 			if(windowStartOffset == 0 || buffer.remaining() == 0) {
 				if(requestClose || isClosed()) {
@@ -602,12 +645,17 @@ public class RBTPConnection implements Bindable {
 				windowStartOffset -= readCount;
 				readBufferSequenceNum += readCount;
 				
-				System.out.println("READ: WindowStartOffset is now " + windowStartOffset);
+				if(PRINT_DEBUG) {
+					System.out.println("READ: WindowStartOffset is now " + windowStartOffset);
+				}
 				
 				return readCount;
 			}
 		}
 		
+		/**
+		 * Goes through all the packets received and sends an ACK packet with the contents.
+		 */
 		private void ackReceivedPackets() {
 			if(packetsReceived.size() > 0) {
 				RBTPPacket ackPacket = new RBTPPacket();
@@ -617,17 +665,23 @@ public class RBTPConnection implements Bindable {
 				ByteBuffer acks = BufferPool.getBuffer(packetsReceived.size() * 4);
 				
 				synchronized(readBuffer) {
-					System.out.print("CONNECTION (IST): Sending ack packet, acks: ");
+					if(PRINT_DEBUG) {
+						System.out.print("CONNECTION (IST): Sending ack packet, acks: ");
+					}
+					
 					for(RBTPPacket p : packetsReceived) {
 						dataPackets++;
 						
-						System.out.print(p.sequenceNumber() + ", ");
+						if(PRINT_DEBUG) {
+							System.out.print(p.sequenceNumber() + ", ");
+						}
 						
 						long relativeLoc = p.sequenceNumber() - readBufferSequenceNum;
 						if(relativeLoc < 0) {
 							relativeLoc = (int)(0x100000000L + relativeLoc);
 						}
 						
+						// Finds the relative location of the packet with regards to the first byte of the readBuffer
 						if(relativeLoc + p.payload().capacity() <= readBuffer.capacity()) {
 							acks.putInt((int)p.sequenceNumber());
 							
@@ -640,7 +694,10 @@ public class RBTPConnection implements Bindable {
 										readBuffer.put((int)(relativeLoc + i), p.payload().get(i));
 									}
 								} else {
-									System.out.println("CONNECTION (IST): Received duplicate packet! Seq: " + p.sequenceNumber() + ", relativeLoc: " + relativeLoc);
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Received duplicate packet! Seq: " + p.sequenceNumber() + ", relativeLoc: " + relativeLoc);
+									}
+									
 									duplicateCount++;
 								}
 								
@@ -648,19 +705,22 @@ public class RBTPConnection implements Bindable {
 									do {
 										long index = readBufferSequenceNum + windowStartOffset;
 										windowStartOffset += currSequenceNumbers.get(index);
-										System.out.println("CONNECTION (IST): windowStartOffset is now " + windowStartOffset);
 										currSequenceNumbers.remove(index);
 									} while(currSequenceNumbers.containsKey(readBufferSequenceNum + windowStartOffset));
 								}
 							} else {
 								duplicateCount++;
-								System.out.println("CONNECTION (IST): Received old packet! Seq: " + p.sequenceNumber() + ", relativeLoc: " + relativeLoc);
+								if(PRINT_DEBUG) {
+									System.out.println("CONNECTION (IST): Received old packet! Seq: " + p.sequenceNumber() + ", relativeLoc: " + relativeLoc);
+								}
 							}
 						}
 						
 						p.destroy();
 					}
-					System.out.println();
+					if(PRINT_DEBUG) {
+						System.out.println();
+					}
 				}
 				
 				acks.flip();
@@ -671,7 +731,9 @@ public class RBTPConnection implements Bindable {
 				}
 				setupPacket(ackPacket, windowSizeLeft);
 				
-				System.out.println("CONNECTION (IST): Sending ACK packet, windowSizeLeft: " + windowSizeLeft);
+				if(PRINT_DEBUG) {
+					System.out.println("CONNECTION (IST): Sending ACK packet, windowSizeLeft: " + windowSizeLeft);
+				}
 				
 				ackPacket.metadata(acks);
 				
@@ -680,11 +742,16 @@ public class RBTPConnection implements Bindable {
 				
 				packetsReceived.clear();
 				
-				System.out.println("CONNECTION (IST): Total data received: " + totalDataReceived + " bytes. Total duplicate packets: " + duplicateCount +
-				                     ". Total data packets: " + dataPackets + ", TOTAL packets received: " + totalPackets);
+				if(PRINT_DEBUG) {
+					System.out.println("CONNECTION (IST): Total data received: " + totalDataReceived + " bytes. Total duplicate packets: " + duplicateCount +
+							                   ". Total data packets: " + dataPackets + ", TOTAL packets received: " + totalPackets);
+				}
 			}
 		}
 		
+		/**
+		 * The main engine of the RBTPConnection. This contains the state machine.
+		 */
 		@Override
 		public void run() {
 			int timedWaitCount = 0;
@@ -694,7 +761,9 @@ public class RBTPConnection implements Bindable {
 			while(true) {
 				try {
 					if(state == RBTPConnectionState.CLOSED) {
-						System.out.println("CONNECTION (IST): closed, InputStreamThread exiting.");
+						if(PRINT_DEBUG) {
+							System.out.println("CONNECTION (IST): closed, InputStreamThread exiting.");
+						}
 						if(synFinLastPacket != null) {
 							synFinLastPacket.destroy();
 						}
@@ -707,6 +776,7 @@ public class RBTPConnection implements Bindable {
 						prevReceiveTime = -1;
 					}
 					
+					// Receive a packet
 					RBTPPacket packet = packetsQueue.poll(TIMEOUT, TimeUnit.MILLISECONDS);
 					
 					if(packet == null) {
@@ -720,22 +790,33 @@ public class RBTPConnection implements Bindable {
 							if(synFinLastPacket != null) {
 								retryCount++;
 								if(retryCount >= 20) {
-									System.out.println("CONNECTION (IST): Consecutive timeout limit reached. Closing...");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Consecutive timeout limit reached. Closing...");
+									}
 									state = RBTPConnectionState.CLOSED;
 									continue;
 								}
 								
-								System.out.println("CONNECTION (IST): Timeout! Resending last init/fin packet");
+								if(PRINT_DEBUG) {
+									System.out.println("CONNECTION (IST): Timeout! Resending last init/fin packet");
+								}
 								sendPacket.accept(synFinLastPacket);
 							} else {
-								System.out.println("CONNECTION (IST): Init Fin Packet null!");
+								if(PRINT_DEBUG) {
+									System.out.println("CONNECTION (IST): Init Fin Packet null!");
+								}
 							}
 						}
 					} else {
 						retryCount = 0;
 						
-						System.out.println("CONNECTION (IST): Received packet (seq: " + packet.sequenceNumber() + ")!");
+						if(PRINT_DEBUG) {
+							System.out.println("CONNECTION (IST): Received packet (seq: " + packet.sequenceNumber() + ")!");
+						}
 						
+						/**
+						 * The state machine of the connection. The packet is processed according to the current state.
+						 */
 						switch(state) {
 							case SYN_SENT:
 								if(packet.cha() && packet.syn()) {
@@ -745,7 +826,9 @@ public class RBTPConnection implements Bindable {
 									sendPacket.accept(synFinLastPacket = calculateChallenge(packet));
 									state = RBTPConnectionState.ACK_CHA_SENT;
 								} else {
-									System.out.println("CONNECTION (IST): Received invalid packet, expected SYN-CHA. Closing...");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Received invalid packet, expected SYN-CHA. Closing...");
+									}
 									state = RBTPConnectionState.CLOSED;
 								}
 								
@@ -754,12 +837,19 @@ public class RBTPConnection implements Bindable {
 								break;
 							case SYN_RCVD:
 								if(packet.syn()) {
-									System.out.println("CONNECTION (IST): Re-received SYN, resending SYN-CHA.");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Re-received SYN, resending SYN-CHA.");
+									}
 									sendPacket.accept(synFinLastPacket);
 								} else if(packet.ack() && packet.cha()) {
-									System.out.println("CONNECTION (IST): Received ACK-CHA.");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Received ACK-CHA.");
+									}
+									
 									if(sha1BeginsWithNZeroes(packet, packet.metadata().get(7))) {
-										System.out.println("Connection: client passed challenge, connection established!");
+										if(PRINT_DEBUG) {
+											System.out.println("Connection: client passed challenge, connection established!");
+										}
 										
 										RBTPPacket ackPacket = new RBTPPacket();
 										setupPacket(ackPacket, maxWindowSize);
@@ -778,7 +868,10 @@ public class RBTPConnection implements Bindable {
 										
 										synFinLastPacket = ackPacket;
 									} else {
-										System.out.println("CONNECTION (IST): client failed challenge, connection rejected!");
+										if(PRINT_DEBUG) {
+											System.out.println("CONNECTION (IST): client failed challenge, connection rejected!");
+										}
+										
 										RBTPPacket rejPacket = new RBTPPacket();
 										setupPacket(rejPacket, maxWindowSize);
 										rejPacket.sequenceNumber((int)(synFinLastPacket.sequenceNumber() + 1));
@@ -794,7 +887,10 @@ public class RBTPConnection implements Bindable {
 										synFinLastPacket = rejPacket;
 									}
 								} else {
-									System.out.println("CONNECTION (IST): Received invalid packet, expected ACK-CHA. Closing...");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Received invalid packet, expected ACK-CHA. Closing...");
+									}
+									
 									state = RBTPConnectionState.CLOSED;
 								}
 								
@@ -803,10 +899,16 @@ public class RBTPConnection implements Bindable {
 								break;
 							case ACK_CHA_SENT:
 								if(packet.syn() && packet.cha()) {
-									System.out.println("CONNECTION (IST): Re-received SYN-CHA, resending ACK-CHA.");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Re-received SYN-CHA, resending ACK-CHA.");
+									}
+									
 									sendPacket.accept(synFinLastPacket);
 								} else if(packet.ack()) {
-									System.out.println("CONNECTION (IST): Server accepted challenge, connection established!");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Server accepted challenge, connection established!");
+									}
+									
 									state = RBTPConnectionState.ESTABLISHED;
 									
 									readBufferSequenceNum = packet.sequenceNumber();
@@ -817,14 +919,20 @@ public class RBTPConnection implements Bindable {
 									}
 									synFinLastPacket = null;
 								} else if(packet.rej()) {
-									System.out.println("CONNECTION (IST): Server declined challenge, connection rejected!");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Server declined challenge, connection rejected!");
+									}
+									
 									state = RBTPConnectionState.CLOSED;
 									if(synFinLastPacket != null) {
 										synFinLastPacket.destroy();
 									}
 									synFinLastPacket = null;
 								} else {
-									System.out.println("CONNECTION (IST): Received invalid packet, expected ACK/REJ. Closing...");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Received invalid packet, expected ACK/REJ. Closing...");
+									}
+									
 									state = RBTPConnectionState.CLOSED;
 								}
 								
@@ -838,12 +946,18 @@ public class RBTPConnection implements Bindable {
 							case CLOSE_WAIT:
 							case LAST_ACK:
 								if(packet.cha() && packet.ack()) {
-									System.out.println("CONNECTION (IST): RE-received ACK-CHA, resending ACK.");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): RE-received ACK-CHA, resending ACK.");
+									}
+									
 									sendPacket.accept(synFinLastPacket);
 									
 									packet.destroy();
 								} else if(packet.ack()) {
-									System.out.println("CONNECTION (IST): Received ACK packet. seq: " + packet.sequenceNumber());
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Received ACK packet. seq: " + packet.sequenceNumber());
+									}
+									
 									outputStreamThread.acceptAck(packet);
 								} else if(packet.fin()) {
 									RBTPPacket finAckPacket = new RBTPPacket();
@@ -867,33 +981,50 @@ public class RBTPConnection implements Bindable {
 										state = RBTPConnectionState.TIMED_WAIT;
 									}
 									
-									System.out.println("CONNECTION (IST): Received FIN packet. seq: " + packet.sequenceNumber() + ". state: " + state);
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Received FIN packet. seq: " + packet.sequenceNumber() + ". state: " + state);
+									}
 									
 									sendPacket.accept(finAckPacket);
 									
 									requestClose = true;
 								} else if(packet.rej()) {
-									System.out.println("CONNECTION (IST): Somehow received REJ after connection established?");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Somehow received REJ after connection established?");
+									}
+									
 									state = RBTPConnectionState.CLOSED;
 									packet.destroy();
 								} else if(packet.rst()) {
-									System.out.println("CONNECTION (IST): RST flag unimplemented! Closing connection.");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): RST flag unimplemented! Closing connection.");
+									}
+									
 									state = RBTPConnectionState.CLOSED;
 									packet.destroy();
 								} else if(packet.syn()) {
-									System.out.println("CONNECTION (IST): Somehow received SYN after connection established?");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Somehow received SYN after connection established?");
+									}
+									
 									state = RBTPConnectionState.CLOSED;
 									packet.destroy();
 								} else {
 									// no flags are set
 									if(!packetsReceived.contains(packet)) {
-										System.out.println("CONNECTION (IST): Received data packet, seq: " + packet.sequenceNumber() + ", payload len: " + packet.payload().capacity());
+										if(PRINT_DEBUG) {
+											System.out.println("CONNECTION (IST): Received data packet, seq: " + packet.sequenceNumber() + ", payload len: " + packet.payload().capacity());
+										}
+										
 										packetsReceived.add(packet);
 										prevReceiveTime = System.currentTimeMillis();
 									} else {
 										duplicateCount++;
 										dataPackets++;
-										System.out.println("CONNECTION (IST): Received duplicate packet!");
+										if(PRINT_DEBUG) {
+											System.out.println("CONNECTION (IST): Received duplicate packet!");
+										}
+										
 										packet.destroy();
 									}
 								}
@@ -903,10 +1034,16 @@ public class RBTPConnection implements Bindable {
 								timedWaitCount = 0;
 								
 								if(packet.fin() && synFinLastPacket != null) {
-									System.out.println("CONNECTION (IST): Re-received FIN, resending ACK.");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Re-received FIN, resending ACK.");
+									}
+									
 									sendPacket.accept(synFinLastPacket);
 								} else if(packet.ack() && packet.cha()) {
-									System.out.println("CONNECTION (IST): Re-received ACK-CHA, resending REJ.");
+									if(PRINT_DEBUG) {
+										System.out.println("CONNECTION (IST): Re-received ACK-CHA, resending REJ.");
+									}
+									
 									sendPacket.accept(synFinLastPacket);
 								}
 								

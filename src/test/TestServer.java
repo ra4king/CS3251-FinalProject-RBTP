@@ -74,8 +74,9 @@ public class TestServer implements Runnable {
 					}
 				}
 				
-				if(match)
+				if(match) {
 					System.out.println("TEST: ALL MATCH SO FAR! Remaining to read: " + count);
+				}
 				
 				buffer.compact();
 			}
@@ -109,13 +110,12 @@ public class TestServer implements Runnable {
 			socket.close();
 			
 			while(!socket.isClosed()) {
-				try {
-					Thread.sleep(100);
-				}
-				catch(Exception exc) {
-				}
+				Thread.sleep(100);
 			}
-		} catch(Exception exc) {
+			
+			System.out.println("Closed.");
+		}
+		catch(Exception exc) {
 			exc.printStackTrace();
 		}
 	}

@@ -1,5 +1,7 @@
 package edu.rbtp.impl;
 
+import static edu.rbtp.tools.BufferPool.*;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -12,9 +14,8 @@ import edu.rbtp.RBTPSocketAddress;
 import edu.rbtp.tools.BufferPool;
 
 /**
- * 
  * This class handles reading from the UDP socket and multiplexing to the bound Bindables.
- * 
+ *
  * @author Roi Atalla
  */
 public class NetworkManager {
@@ -36,15 +37,16 @@ public class NetworkManager {
 	private static NetworkManager instance = null;
 	
 	public static NetworkManager getInstance() {
-		if(instance == null)
+		if(instance == null) {
 			throw new IllegalStateException("NetworkManager not initialized: NetworkManger.init(int UDPport)");
+		}
 		
 		return instance;
 	}
 	
 	/**
 	 * This init method *MUST* be called before using NetworkManager at all.
-	 * 
+	 *
 	 * @param UDPport the UDP port to bind to
 	 * @return the NetworkManager singleton instance
 	 * @throws IOException
@@ -73,8 +75,9 @@ public class NetworkManager {
 	}
 	
 	public synchronized void bindSocket(short port, Bindable socket) throws IOException {
-		if(socket.isBound())
+		if(socket.isBound()) {
 			throw new IllegalArgumentException("Socket is already bound.");
+		}
 		
 		ConnectionInfo connectionInfo = this.new ConnectionInfo(port, socket);
 		
@@ -83,8 +86,9 @@ public class NetworkManager {
 		}
 		
 		socket.bind(connectionInfo);
-		if(connectionInfo.getPacketReceivedConsumer() == null)
+		if(connectionInfo.getPacketReceivedConsumer() == null) {
 			throw new IllegalStateException("Did not set packetReceivedConsumer.");
+		}
 	}
 	
 	private class ConnectionInfo implements BindingInterface, Consumer<RBTPPacket> {
@@ -130,12 +134,17 @@ public class NetworkManager {
 			packet.encode(sendBuffer);
 			sendBuffer.flip();
 			
-			System.out.println("NetworkManager: sending packet seq: " + packet.sequenceNumber() + ", dest: " + packet.address);
+			if(PRINT_DEBUG) {
+				System.out.println("NetworkManager: sending packet seq: " + packet.sequenceNumber() + ", dest: " + packet.address);
+			}
 			
 			try {
 				while(channel.send(sendBuffer, packet.address.getAddress()) == 0)
-					System.out.println("NetworkManager: FAILED TO WRITE BYTES!");
-			} catch(IOException exc) {
+					if(PRINT_DEBUG) {
+						System.out.println("NetworkManager: FAILED TO WRITE BYTES!");
+					}
+			}
+			catch(IOException exc) {
 				exc.printStackTrace();
 				throw new RuntimeException(exc);
 			}
@@ -159,29 +168,40 @@ public class NetworkManager {
 					SocketAddress address = channel.receive(buffer);
 					buffer.flip();
 					
-					System.out.println("NetworkManager: Received packet!");
+					if(PRINT_DEBUG) {
+						System.out.println("NetworkManager: Received packet!");
+					}
 					
 					RBTPPacket packet = new RBTPPacket();
 					try {
 						packet.decode(buffer);
-					} catch(Exception exc) {
+					}
+					catch(Exception exc) {
 						checksumFailCount++;
-						System.out.println("NetworkManager: FAILED CHECKSUM!");
+						if(PRINT_DEBUG) {
+							System.out.println("NetworkManager: FAILED CHECKSUM!");
+						}
 						continue;
 					}
 					
-					System.out.println(BufferPool.getBuffersCreatedCount() + " buffers created so far.");
+					if(PRINT_DEBUG) {
+						System.out.println(BufferPool.getBuffersCreatedCount() + " buffers created so far.");
+					}
 					
 					ConnectionInfo connection = connectionMap.get((short)packet.destinationPort());
 					if(connection == null) {
 						noMappingFoundCount++;
-						System.out.println("NetworkManager: no mapping found for port " + packet.destinationPort());
+						if(PRINT_DEBUG) {
+							System.out.println("NetworkManager: no mapping found for port " + packet.destinationPort());
+						}
 						packet.destroy();
 						continue;
 					}
 					
 					packet.address = new RBTPSocketAddress((InetSocketAddress)address, packet.sourcePort());
-					System.out.println("NetworkManager: received packet seq: " + packet.sequenceNumber() + ", destPort: " + packet.destinationPort() + ", source: " + packet.address);
+					if(PRINT_DEBUG) {
+						System.out.println("NetworkManager: received packet seq: " + packet.sequenceNumber() + ", destPort: " + packet.destinationPort() + ", source: " + packet.address);
+					}
 					
 					connection.packetReceived.accept(packet);
 				}
