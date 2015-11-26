@@ -39,6 +39,7 @@ This section will describe the 2 protocols which have been implemented in this p
    |              0x01 - GET - message is a GET request.
    |              0x02 - PUT - message is a PUT request.
    |              0x03 - RSP - message is a response to a prior request.
+   |              0x04 - FIN - denotes the final message in a conversation
    |
    |   + content: varying-length field containing data.
    |
