@@ -39,52 +39,84 @@ public class TestServer implements Runnable {
 	
 	@Override
 	public void run() {
-		System.out.println("TEST: New connection!");
-		
-		ByteBuffer buffer = ByteBuffer.allocate(1000);
-		
-		Random rng = null;
-		
-		long time = System.currentTimeMillis();
-		
-		int count = 1000;
-		while(count > 0) {
-			int read = socket.read(buffer);
-			buffer.flip();
+		try {
+			System.out.println("TEST: New connection!");
 			
-			if(rng == null && buffer.remaining() >= 4) {
-				rng = new Random(buffer.getInt());
-				read -= 4;
+			ByteBuffer buffer = ByteBuffer.allocate(1000);
+			
+			Random rng = null;
+			
+			long time = System.currentTimeMillis();
+			
+			int seed = 0;
+			
+			int count = 1000;
+			while(count > 0) {
+				int read = socket.read(buffer);
+				buffer.flip();
+				
+				if(rng == null && buffer.remaining() >= 4) {
+					rng = new Random(seed = buffer.getInt());
+					read -= 4;
+				}
+				
+				count -= read;
+				
+				System.out.println("TEST: Read " + read + " bytes.");
+				
+				boolean match = true;
+				
+				while(buffer.remaining() >= 4) {
+					if(rng.nextInt() != buffer.getInt()) {
+						System.out.println("TEST: DID NOT MATCH!");
+						match = false;
+						break;
+					}
+				}
+				
+				if(match)
+					System.out.println("TEST: ALL MATCH SO FAR! Remaining to read: " + count);
+				
+				buffer.compact();
 			}
 			
-			count -= read;
+			long diffTime = System.currentTimeMillis() - time;
 			
-			System.out.println("TEST: Read " + read + " bytes.");
+			System.out.printf("TEST: Total bytes read: 1000, in %.3f seconds\n", (diffTime / 1000.0));
 			
-			boolean match = true;
+			buffer.clear();
 			
-			while(buffer.remaining() >= 4) {
-				if(rng.nextInt() != buffer.getInt()) {
-					System.out.println("TEST: DID NOT MATCH!");
-					match = false;
-					break;
+			long bytesSent = 0;
+			
+			rng = new Random(seed * 2);
+			
+			count = 1000;
+			while(count > 0) {
+				while(buffer.remaining() >= 4) {
+					buffer.putInt(rng.nextInt());
+				}
+				
+				buffer.flip();
+				int sent = socket.write(buffer);
+				bytesSent += sent;
+				count -= sent;
+				System.out.println("TEST: Wrote " + sent + " bytes. bytes left to send: " + count);
+				buffer.compact();
+			}
+			
+			System.out.println("TEST: Written " + bytesSent + " total bytes.");
+			
+			socket.close();
+			
+			while(!socket.isClosed()) {
+				try {
+					Thread.sleep(100);
+				}
+				catch(Exception exc) {
 				}
 			}
-			
-			if(match)
-				System.out.println("TEST: ALL MATCH SO FAR! Remaining to read: " + count);
-			
-			buffer.compact();
-		}
-		
-		long diffTime = System.currentTimeMillis() - time;
-		
-		System.out.printf("TEST: Total bytes read: 1000000, in %.3f seconds\n", (diffTime / 1000.0));
-		
-		socket.close();
-		
-		while(!socket.isClosed()) {
-			try { Thread.sleep(100); } catch(Exception exc) {}
+		} catch(Exception exc) {
+			exc.printStackTrace();
 		}
 	}
 }

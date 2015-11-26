@@ -1,7 +1,4 @@
-package test;
-
-import edu.sftp.SFTP;
-import edu.sftp.impl.SFTPClient;
+package simpleftp;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -11,28 +8,30 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Scanner;
 
+import edu.rbtp.impl.NetworkManager;
+import simpleftp.impl.SimpleFTPClient;
+
 /**
  * TODO Documentation
  * TODO Format console output to look nicer
  *
  * @author Evan Bailey
  */
-public class SFTPClientLauncher {
+public class SimpleFTPClientLauncher {
 
     private static String determineLocalFilename(String filename) {
-        int prefix = 1;
-        String localFilename = filename, prefixString;
+        int count = 1;
+        String localFilename = filename;
 
         while (Files.exists(Paths.get(localFilename))) {
-            prefixString = "(" + String.valueOf(prefix) + ")";
-            localFilename = prefixString.concat(filename);
-            prefix++;
+            localFilename = filename.concat("(" + String.valueOf(count) + ")");
+            count++;
         }
 
         return localFilename;
     }
 
-    private static void changeWindowSize(SFTPClient client, String windowSizeStr) {
+    private static void changeWindowSize(SimpleFTPClient client, String windowSizeStr) {
         int windowSize;
 
         try {
@@ -45,7 +44,7 @@ public class SFTPClientLauncher {
         }
     }
 
-    private static void doGet(SFTPClient client, String filename) {
+    private static void doGet(SimpleFTPClient client, String filename) {
         byte opcode;
         byte response[], content[];
         FileOutputStream fouts;
@@ -56,13 +55,10 @@ public class SFTPClientLauncher {
             content = new byte[response.length - 1];
             opcode = response[0];
 
-            // Get content
-            for (int i = 1; i < response.length; i++) {
-                content[i - 1] = response[i];
-            }
+            System.arraycopy(response, 1, content, 0, content.length);
 
             // Successful GET
-            if (SFTP.RSP == opcode) {
+            if (SimpleFTP.RSP == opcode) {
                 System.out.println("Successfully received file from server.");
 
                 // Ensure we don't overwrite pre-existing files
@@ -77,11 +73,11 @@ public class SFTPClientLauncher {
                 System.out.println("File saved as " + localFilename);
             }
             // Unsuccessful GET
-            else if (SFTP.ERR == opcode) {
-                System.out.println("Server returned an error message:");
+            else if (SimpleFTP.ERR == opcode) {
+                System.out.print("Server returned an error message (length " + content.length + " bytes):");
                 errorMessage = new String(content, "UTF-8");
 
-                System.out.println("> errorMessage: " + errorMessage);
+                System.out.println(errorMessage);
             }
         }
         catch (IOException ioex) {
@@ -110,7 +106,7 @@ public class SFTPClientLauncher {
         int port, netEmuPort;
         String netEmuIP, input, filename;
         String inputArray[];
-        SFTPClient client = null;
+        SimpleFTPClient client = null;
 
         if (args.length != 3) {
             System.out.println("ERROR: Incorrect parameters. Usage: $ java SFTPClient X A P");
@@ -120,11 +116,14 @@ public class SFTPClientLauncher {
         try {
             // Parse arguments, create client
             port = Integer.parseInt(args[0]);
+            NetworkManager.init(port);
+            
             netEmuIP = args[1];
             netEmuPort = Integer.parseInt(args[2]);
 
             // Listen for commands
             while (run) {
+                System.out.print("> ");
                 input = scanner.nextLine();
 
                 /*
@@ -135,7 +134,7 @@ public class SFTPClientLauncher {
                         System.out.println("ERROR: Client already connected to server.");
                     }
                     else {
-                        client = new SFTPClient(port, netEmuIP, netEmuPort);
+                        client = new SimpleFTPClient(port, netEmuIP, netEmuPort);
                         connected = true;
 
                         System.out.println("Connected to server.");

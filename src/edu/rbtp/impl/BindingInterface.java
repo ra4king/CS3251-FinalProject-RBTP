@@ -3,6 +3,9 @@ package edu.rbtp.impl;
 import java.util.function.Consumer;
 
 /**
+ * 
+ * A BindingInterface defines how a Bindable and the connection communicate.
+ * 
  * @author Roi Atalla
  */
 public interface BindingInterface {

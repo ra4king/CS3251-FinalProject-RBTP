@@ -1,15 +1,16 @@
-package test;
-
-import edu.sftp.impl.SFTPServer;
+package simpleftp;
 
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketException;
 import java.util.Scanner;
 
-public class SFTPServerLauncher {
+import edu.rbtp.impl.NetworkManager;
+import simpleftp.impl.SimpleFTPServer;
 
-    private static void changeWindowSize(SFTPServer server, String windowSizeStr) {
+public class SimpleFTPServerLauncher {
+
+    private static void changeWindowSize(SimpleFTPServer server, String windowSizeStr) {
         int windowSize;
 
         try {
@@ -36,7 +37,7 @@ public class SFTPServerLauncher {
     public static void main(String args[]) {
         int port, netEmuPort;
         String netEmuIP;
-        SFTPServer server = null;
+        SimpleFTPServer server = null;
 
         if (args.length != 3) {
             System.out.println("Incorrect parameters. Usage: $ java SFTPClient X A P");
@@ -46,19 +47,21 @@ public class SFTPServerLauncher {
         try {
             // Parse arguments, create client
             port = Integer.parseInt(args[0]);
-            netEmuIP = args[1];
-            netEmuPort = Integer.parseInt(args[2]);
+            NetworkManager.init(port);
+            
+            netEmuIP = args[1]; // unused
+            netEmuPort = Integer.parseInt(args[2]); // unused
 
             // Create server
-            server = new SFTPServer(port, netEmuIP, netEmuPort);
+            server = new SimpleFTPServer();
 
             System.out.println("Server established.");
-
+    
+            // Listen for input
+            new Thread(new InputManager(server)).start();
+            
             // Listen for connections
             server.listen();
-
-            // Listen for input
-            new InputManager(server).run();
 
         } catch (ConnectException cex) {
             System.out.println("ERROR: Connection failed.");
@@ -77,7 +80,7 @@ public class SFTPServerLauncher {
     private static class InputManager implements Runnable {
         boolean run = true;
         Scanner scanner = new Scanner(System.in);
-        SFTPServer server;
+        SimpleFTPServer server;
         String input;
         String inputArray[];
 
@@ -85,7 +88,7 @@ public class SFTPServerLauncher {
          * TODO Documentation
          * @param server
          */
-        public InputManager(SFTPServer server) {
+        public InputManager(SimpleFTPServer server) {
             this.server = server;
         }
 
@@ -93,12 +96,13 @@ public class SFTPServerLauncher {
         public void run() {
             // Listen for commands
             while (run) {
+                System.out.print("> ");
                 input = scanner.nextLine(); // TODO must be in Inputthread
 
                 /*
-                 * DISCONNECT COMMAND
+                 * TERMINATE COMMAND
                  */
-                if (input.equalsIgnoreCase("disconnect")) {
+                if (input.equalsIgnoreCase("terminate")) {
                     System.out.println("Shutting down server.");
                     server.close();
                 }

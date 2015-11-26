@@ -12,6 +12,9 @@ import edu.rbtp.RBTPSocketAddress;
 import edu.rbtp.tools.BufferPool;
 
 /**
+ * 
+ * This class handles reading from the UDP socket and multiplexing to the bound Bindables.
+ * 
  * @author Roi Atalla
  */
 public class NetworkManager {
@@ -39,6 +42,13 @@ public class NetworkManager {
 		return instance;
 	}
 	
+	/**
+	 * This init method *MUST* be called before using NetworkManager at all.
+	 * 
+	 * @param UDPport the UDP port to bind to
+	 * @return the NetworkManager singleton instance
+	 * @throws IOException
+	 */
 	public static NetworkManager init(int UDPport) throws IOException {
 		if(instance == null) {
 			synchronized(NetworkManager.class) {
@@ -46,6 +56,8 @@ public class NetworkManager {
 					instance = new NetworkManager(UDPport);
 				}
 			}
+		} else {
+			throw new IllegalStateException("NetworkManager already initialized.");
 		}
 		
 		return instance;

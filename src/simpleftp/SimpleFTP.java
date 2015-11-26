@@ -1,4 +1,4 @@
-package edu.sftp;
+package simpleftp;
 
 import java.nio.ByteBuffer;
 
@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
  *
  * @author Evan Bailey
  */
-public class SFTP {
+public class SimpleFTP {
 
     /* SFTP Identifier Prefix */
     public static final short SFTP_PREFIX = (short)0xFADE;

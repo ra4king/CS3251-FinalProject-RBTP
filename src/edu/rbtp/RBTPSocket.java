@@ -48,7 +48,7 @@ public class RBTPSocket {
 		return connection != null && connection.isClosed();
 	}
 	
-	public int read(ByteBuffer buffer) {
+	public int read(ByteBuffer buffer) throws IOException {
 		return connection.read(buffer, blocking);
 	}
 	

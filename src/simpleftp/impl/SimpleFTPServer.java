@@ -1,47 +1,37 @@
-package edu.sftp.impl;
+package simpleftp.impl;
 
-import edu.sftp.SFTP;
-
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+
+import edu.rbtp.RBTPServerSocket;
+import edu.rbtp.RBTPSocket;
+import simpleftp.SimpleFTP;
 
 /**
  * TODO Documentation
  *
  * @author Evan Bailey
  */
-public class SFTPServer {
-
-    private final int    port;
-    private final String netEmuIP;
-    private final int    netEmuPort;
-
-    private final ServerSocket serverSocket;
+public class SimpleFTPServer {
+    private final RBTPServerSocket serverSocket;
+    private ArrayList<ClientHandler> clients;
 
     private boolean listen = true;
-
-    private DataInputStream input;
-    private DataOutputStream output;
 
     /**
      * Constructor for SFTPServer.
      *
-     * TODO: Switch to RBTP sockets.
-     *
-     * @param port          - Port on which SFTPServer is bound
-     * @param netEmuIP      - IP address NetEmu is running on
-     * @param netEmuPort    - Port NetEmu is bound to
      */
-    public SFTPServer(int port, String netEmuIP, int netEmuPort) throws IOException {
-        this.port = port;
-        this.netEmuIP = netEmuIP;
-        this.netEmuPort = netEmuPort;
-
-        serverSocket = new ServerSocket(port);
+    public SimpleFTPServer() throws IOException {
+        serverSocket = new RBTPServerSocket();
+        serverSocket.bind(1000);
+        
+        clients = new ArrayList<>();
     }
 
     /**
@@ -50,7 +40,9 @@ public class SFTPServer {
      * @param windowSize    - proposed window size
      */
     public synchronized void setWindowSize(int windowSize) {
-        // TODO: Implement when RBTP sockets used
+        for(ClientHandler client : clients) {
+            client.clientSocket.getConnection().setWindowSize(windowSize);
+        }
     }
 
     /**
@@ -68,8 +60,10 @@ public class SFTPServer {
      * @throws IOException if one is encountered =.
      */
     public void listen() throws IOException {
-        Socket clientSocket;
+        RBTPSocket clientSocket;
         Thread clientThread;
+    
+        serverSocket.listen();
 
         while (listen) {
             clientSocket = serverSocket.accept();
@@ -92,9 +86,7 @@ public class SFTPServer {
      * @author Evan Bailey
      */
     private class ClientHandler implements Runnable {
-        Socket clientSocket;
-        DataOutputStream output;
-        DataInputStream input;
+        RBTPSocket clientSocket;
 
         /**
          * Constructor for ClientHandler.
@@ -102,11 +94,8 @@ public class SFTPServer {
          * @param clientSocket  - connection to client
          * @throws IOException if one is encountered.
          */
-        public ClientHandler(Socket clientSocket) throws IOException {
+        public ClientHandler(RBTPSocket clientSocket) throws IOException {
             this.clientSocket = clientSocket;
-            output = new DataOutputStream(this.clientSocket.getOutputStream());
-            input = new DataInputStream(this.clientSocket.getInputStream());
-
             System.out.println("Accepted client connection");
         }
 
@@ -117,27 +106,31 @@ public class SFTPServer {
 
             try {
                 filename = new String(content, "UTF-8");
+                
+                System.out.println("Received content length: " + content.length + ", filename: " + filename);
 
                 path = Paths.get(filename);
                 if (Files.exists(path)) {
-                    response = SFTP.buildMessage(SFTP.RSP, Files.readAllBytes(path));
+                    response = SimpleFTP.buildMessage(SimpleFTP.RSP, Files.readAllBytes(path));
                 }
                 else {
                     // TODO for some reason, error message not being sent?
                     errorMessage = "File not found";
-                    response = SFTP.buildMessage(SFTP.ERR, errorMessage.getBytes("UTF-8"));
+                    response = SimpleFTP.buildMessage(SimpleFTP.ERR, errorMessage.getBytes("UTF-8"));
                 }
             }
             catch (UnsupportedEncodingException ueex) {
                 // Never reached
                 errorMessage = "Server does not support UTF-8 encoding";
-                response = SFTP.buildMessage(SFTP.ERR, errorMessage.getBytes());
+                response = SimpleFTP.buildMessage(SimpleFTP.ERR, errorMessage.getBytes());
             }
             catch (IOException ioex) {
                 // Never reached due to checking that file exists
                 errorMessage = "IOException encountered while reading file";
-                response = SFTP.buildMessage(SFTP.ERR, errorMessage.getBytes());
+                response = SimpleFTP.buildMessage(SimpleFTP.ERR, errorMessage.getBytes());
             }
+            
+            System.out.println("Handle get finished, returning response. opcode: " + response[0]);
 
             return response;
         }
@@ -158,40 +151,52 @@ public class SFTPServer {
          */
         @Override
         public void run() {
-            int msgLength;
-            byte opcode;
-            byte message[], content[];
-
+            ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
+            
+            while(listen) {
+                try {
+                    buffer.clear();
+                    do {
+                        clientSocket.read(buffer);
+                    } while(buffer.position() < 4);
+                    buffer.flip();
+                    
+                    int size = buffer.getInt();
+                    buffer.compact();
+                    
+                    while(size > buffer.position()) {
+                        clientSocket.read(buffer);
+                    }
+                    
+                    buffer.flip();
+                    
+                    byte opcode = buffer.get();
+    
+                    System.out.println("Received opcode: " + opcode);
+                    
+                    byte[] content = new byte[buffer.remaining()];
+                    buffer.get(content);
+    
+                    if(SimpleFTP.GET == opcode) {
+                        ByteBuffer response = ByteBuffer.wrap(handleGet(content));
+                        while(response.hasRemaining())
+                            clientSocket.write(response);
+                    } else if(SimpleFTP.PUT == opcode) {
+                        // TODO Implement (extra credit)
+                    }
+                }
+                catch(IOException ioex) {
+                    System.out.println("Lost connection to client while receiving message");
+                    break;
+                }
+            }
+    
+            // Close socket when done
             try {
-                msgLength = input.readInt();
-                message = new byte[msgLength];
-                content = new byte[msgLength - 1]; // First byte of message is opcode
-
-                input.readFully(message);
-
-                // Get opcode
-                opcode = message[0];
-
-                // Get content
-                for (int i = 1; i < msgLength; i++) {
-                    content[i - 1] = message[i];
-                }
-
-                if (SFTP.GET == opcode) {
-                    output.write(handleGet(content));
-                }
-                else if (SFTP.PUT == opcode) {
-                    // TODO Implement (extra credit)
-                }
-
-                // Close socket when done
                 clientSocket.close();
-            }
-            catch (IOException ioex) {
-                System.out.println("Lost connection to client while receiving message");
-            }
+            } catch(Exception exc) {}
+            
+            clients.remove(this);
         }
-
     }
-
 }

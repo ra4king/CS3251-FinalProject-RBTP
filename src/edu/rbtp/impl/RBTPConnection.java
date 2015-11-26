@@ -180,7 +180,7 @@ public class RBTPConnection implements Bindable {
 		packet.receiveWindow((short)receiveWindow);
 	}
 	
-	public int read(ByteBuffer data, boolean block) {
+	public int read(ByteBuffer data, boolean block) throws IOException {
 		if(block) {
 			int read;
 			while((read = inputStreamThread.read(data)) == 0 && !isClosed()) {
@@ -189,6 +189,10 @@ public class RBTPConnection implements Bindable {
 					Thread.sleep(100);
 				} catch(Exception exc) {}
 			}
+			
+			if(isClosed())
+				throw new IOException("Socket is closed.");
+			
 			return read;
 		} else {
 			return inputStreamThread.read(data);
@@ -321,18 +325,17 @@ public class RBTPConnection implements Bindable {
 					RBTPPacket packet = ackPackets.poll(TIMEOUT, TimeUnit.MILLISECONDS);
 					if(packet == null) {
 						if(lastSent.size() > 0) {
-							timeoutCount++;
-							if(timeoutCount >= 30) {
-								System.out.println("CONNECTION (OST): Consecutive timeout count limit reached. Closing...");
-								state = RBTPConnectionState.CLOSED;
-								continue;
-							}
-							
 							if(System.currentTimeMillis() - prevResendTime >= TIMEOUT * 2) {
 								System.out.println("CONNECTION (OST): Timeout! Resending " + lastSent.size() + " packets.");
 								lastSent.forEach(sendPacket); // resend all
 								prevResendTime = System.currentTimeMillis();
 							}
+						}
+						
+						timeoutCount++;
+						if(timeoutCount >= 100) {
+							System.out.println("CONNECTION (OST): Consecutive timeout count limit reached. Closing...");
+							state = RBTPConnectionState.CLOSED;
 						}
 					} else {
 						timeoutCount = 0;
@@ -618,7 +621,7 @@ public class RBTPConnection implements Bindable {
 		@Override
 		public void run() {
 			int timedWaitCount = 0;
-			
+			int retryCount = 0;
 			long prevReceiveTime = -1;
 			
 			while(true) {
@@ -647,6 +650,13 @@ public class RBTPConnection implements Bindable {
 						if(state == RBTPConnectionState.SYN_SENT || state == RBTPConnectionState.ACK_CHA_SENT || 
 								state == RBTPConnectionState.SYN_RCVD) {
 							if(synFinLastPacket != null) {
+								retryCount++;
+								if(retryCount >= 20) {
+									System.out.println("CONNECTION (IST): Consecutive timeout limit reached. Closing...");
+									state = RBTPConnectionState.CLOSED;
+									continue;
+								}
+								
 								System.out.println("CONNECTION (IST): Timeout! Resending last init/fin packet");
 								sendPacket.accept(synFinLastPacket);
 							}
@@ -656,6 +666,8 @@ public class RBTPConnection implements Bindable {
 						}
 					}
 					else {
+						retryCount = 0;
+						
 						System.out.println("CONNECTION (IST): Received packet (seq: " + packet.sequenceNumber() + ")!");
 						
 						switch(state) {

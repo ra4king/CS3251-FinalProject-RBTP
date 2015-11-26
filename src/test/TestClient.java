@@ -48,8 +48,8 @@ public class TestClient implements Runnable {
 			
 			long bytesSent = 0;
 			
-			int count = 1;
-			while(count-- > 0) {
+			int count = 1000;
+			while(count > 0) {
 				while(buffer.remaining() >= 4) {
 					buffer.putInt(rng.nextInt());
 				}
@@ -57,11 +57,40 @@ public class TestClient implements Runnable {
 				buffer.flip();
 				int written = socket.write(buffer);
 				bytesSent += written;
-				System.out.println("TEST: Wrote " + written + " bytes. count: " + count);
+				count -= written;
+				System.out.println("TEST: Wrote " + written + " bytes. bytes left: " + count);
 				buffer.compact();
 			}
 			
 			System.out.println("TEST: Written " + bytesSent + " total bytes.");
+			
+			rng = new Random(seed * 2);
+			buffer.clear();
+			
+			count = 1000;
+			while(count > 0) {
+				int read = socket.read(buffer);
+				buffer.flip();
+				
+				count -= read;
+				
+				System.out.println("TEST: Read " + read + " bytes.");
+				
+				boolean match = true;
+				
+				while(buffer.remaining() >= 4) {
+					if(rng.nextInt() != buffer.getInt()) {
+						System.out.println("TEST: DID NOT MATCH!");
+						match = false;
+						break;
+					}
+				}
+				
+				if(match)
+					System.out.println("TEST: ALL MATCH SO FAR! Remaining to read: " + count);
+				
+				buffer.compact();
+			}
 			
 			//socket.close();
 			
