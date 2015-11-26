@@ -622,10 +622,10 @@ public class RBTPConnection implements Bindable {
 		/**
 		 * Main read method: fills the buffer as much as it can and returns the number of bytes read.
 		 */
-		public int read(ByteBuffer buffer) {
+		public int read(ByteBuffer buffer) throws IOException {
 			if(windowStartOffset == 0 || buffer.remaining() == 0) {
 				if(requestClose || isClosed()) {
-					throw new IllegalStateException("Socket is closing or closed.");
+					throw new IOException("Socket is closing or closed.");
 				}
 				
 				return 0;
@@ -778,7 +778,7 @@ public class RBTPConnection implements Bindable {
 					RBTPPacket packet = packetsQueue.poll(TIMEOUT, TimeUnit.MILLISECONDS);
 					
 					if(packet == null) {
-						if(state == RBTPConnectionState.TIMED_WAIT && ++timedWaitCount >= 20) {
+						if(state == RBTPConnectionState.TIMED_WAIT && ++timedWaitCount >= (2000 / TIMEOUT)) {
 							state = RBTPConnectionState.CLOSED;
 							continue;
 						}

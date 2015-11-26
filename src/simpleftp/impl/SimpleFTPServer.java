@@ -53,6 +53,10 @@ public class SimpleFTPServer {
 	public synchronized void close() {
 		listen = false;
 		serverSocket.close();
+		
+		for(ClientHandler client : clients) {
+			client.clientSocket.close();
+		}
 	}
 	
 	/**
@@ -64,7 +68,6 @@ public class SimpleFTPServer {
 		serverSocket.listen();
 		
 		while(listen) {
-			System.out.println("Waiting for new connection");
 			RBTPSocket clientSocket = serverSocket.accept();
 			
 			Thread clientThread = new Thread(new ClientHandler(clientSocket));
@@ -226,7 +229,6 @@ public class SimpleFTPServer {
 					}
 				}
 				catch(IOException ioex) {
-					System.out.println("Lost connection to client while receiving message");
 					break;
 				}
 			}
@@ -237,6 +239,8 @@ public class SimpleFTPServer {
 			}
 			catch(Exception exc) {
 			}
+			
+			System.out.println("Client closed.");
 			
 			clients.remove(this);
 		}

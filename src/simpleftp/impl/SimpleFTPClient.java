@@ -124,4 +124,8 @@ public class SimpleFTPClient {
 		
 		socket.close();
 	}
+	
+	public boolean isClosed() {
+		return socket.isClosed();
+	}
 }

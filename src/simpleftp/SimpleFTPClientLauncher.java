@@ -152,6 +152,11 @@ public class SimpleFTPClientLauncher {
 				System.out.print("> ");
 				input = scanner.nextLine();
 				
+				if(client != null && client.isClosed()) {
+					System.out.println("Server has closed the connection.");
+					break;
+				}
+				
 				/*
 				 * CONNECT COMMAND
 				 */
