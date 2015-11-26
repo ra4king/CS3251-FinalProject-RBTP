@@ -39,6 +39,7 @@ This section will describe the 2 protocols which have been implemented in this p
    |              0x01 - GET - message is a GET request.
    |              0x02 - PUT - message is a PUT request.
    |              0x03 - RSP - message is a response to a prior request.
+   |              0x04 - FIN - denotes the final message in a conversation
    |
    |   + content: varying-length field containing data.
    |
@@ -104,12 +105,39 @@ RBTPServer.java
 - Middleman through which NetworkManager and RBTPconnections communicate; RBTPConnections bind to this
   rather than the NetworkManager, allowing each RBTPserver to handle its own multiplexing.
 
+-----------
+  COMPILE
+-----------
+
+To compile all the files, create a folder 'out/' for the destination files, then navigate to 'src/' and open a command prompt in that directory:
+
+    javac -d ../out/ simpleftp/SimpleFTPClientLauncher.java simpleftp/SimpleFTPServerLauncher.java
+
+To create the jars, navigate to the 'out/' directory and open a command prompt there:
+
+    jar -cfm SimpleFTPClient.jar ../src/ClientManifest.mf *
+    jar -cfm SimpleFTPServer.jar ../src/ServerManifest.mf *
 
 ---------
   USAGE
 ---------
 
-TODO
+To run the server and client:
+    java -jar SimpleFTPServer.jar X A P
+    java -jar SimpleFTPClient.jar X A P
+
+Where X = UDP port to bind to, A = NetEmu address, P = NetEmu port
+
+Server commands:
+    window W  - sets the window size
+    terminate - closes the server
+
+Client commands:
+    connect    - client connects to the server
+    get F      - attempts to get file F from the server
+    put F      - attempts to put file F on the server
+    window W   - sets the window size
+    disconnect - disconnects the client from the server
 
 
 --------

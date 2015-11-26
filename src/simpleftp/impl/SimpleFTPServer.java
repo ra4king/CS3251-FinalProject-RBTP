@@ -14,7 +14,7 @@ import edu.rbtp.RBTPSocket;
 import simpleftp.SimpleFTP;
 
 /**
- * TODO Documentation
+ * Implementation of a SimpleFTP server,
  *
  * @author Evan Bailey
  */
@@ -78,7 +78,7 @@ public class SimpleFTPServer {
 	}
 	
 	/**
-	 * TODO: Documentation
+	 * Manages a client connection.
 	 *
 	 * @author Evan Bailey
 	 */
