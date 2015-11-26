@@ -145,10 +145,13 @@ public class NetworkManager {
 	public int checksumFailCount = 0;
 	public int noMappingFoundCount = 0;
 	
+	/**
+	 * The actual packet handling. This thread reads UDP packets, checks for bad checksums, and multiplexes the packets to the appropriate Bindable.
+	 */
 	private class NetworkManagerThread implements Runnable {
 		@Override
 		public void run() {
-			ByteBuffer buffer = ByteBuffer.allocateDirect(4096); // 4K for now
+			ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
 			
 			while(true) {
 				try {

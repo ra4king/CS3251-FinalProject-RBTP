@@ -21,8 +21,9 @@ class RBTPPacket {
 	
 	@Override
 	public boolean equals(Object o) {
-		if(!(o instanceof RBTPPacket))
+		if(!(o instanceof RBTPPacket)) {
 			return false;
+		}
 		RBTPPacket p = (RBTPPacket)o;
 		return this.sequenceNumber() == p.sequenceNumber();
 	}
@@ -52,8 +53,9 @@ class RBTPPacket {
 	}
 	
 	public int headerSize() {
-		if(metadata != null && metadata.capacity() % 4 != 0)
+		if(metadata != null && metadata.capacity() % 4 != 0) {
 			throw new IllegalStateException("metadata capacity must be divisible by four");
+		}
 		
 		return 4 + (metadata == null ? 0 : metadata.capacity() / 4);
 	}
@@ -107,7 +109,7 @@ class RBTPPacket {
 	}
 	
 	public byte scale() {
-		return (byte)(flags & 0xF); 
+		return (byte)(flags & 0xF);
 	}
 	
 	public void scale(byte scale) {
@@ -194,7 +196,7 @@ class RBTPPacket {
 	}
 	
 	@Override
-	protected void finalize() throws Throwable{
+	protected void finalize() throws Throwable {
 		destroy();
 		
 		super.finalize();

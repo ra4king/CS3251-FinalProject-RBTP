@@ -13,7 +13,8 @@ public class RBTPServer implements Bindable {
 	private Consumer<RBTPConnection> acceptHandler;
 	private volatile boolean closed = false;
 	
-	public RBTPServer() {}
+	public RBTPServer() {
+	}
 	
 	public boolean isClosed() {
 		return closed;
@@ -30,8 +31,9 @@ public class RBTPServer implements Bindable {
 	
 	@Override
 	public void bind(BindingInterface bindingInterface) {
-		if(this.serverBindingInterface != null)
+		if(this.serverBindingInterface != null) {
 			throw new IllegalStateException("Already bound.");
+		}
 		
 		this.serverBindingInterface = bindingInterface;
 		this.serverBindingInterface.setPacketReceivedConsumer(new PacketConsumer());
@@ -104,11 +106,14 @@ public class RBTPServer implements Bindable {
 					while(!newConnection.isConnected() && !newConnection.isClosed()) {
 						try {
 							Thread.sleep(10);
-						} catch(Exception exc) {}
+						}
+						catch(Exception exc) {
+						}
 					}
 					
-					if(newConnection.isConnected())
+					if(newConnection.isConnected()) {
 						acceptHandler.accept(newConnection);
+					}
 				}).start();
 			} else if(clientBindingInterface.getPacketReceivedConsumer() != null) {
 				clientBindingInterface.getPacketReceivedConsumer().accept(packet);

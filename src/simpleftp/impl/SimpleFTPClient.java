@@ -12,102 +12,102 @@ import simpleftp.SimpleFTP;
 /**
  * TODO Documentation
  * TODO ex: SFTP client commands (disconnect, get, put, etc)
- *
+ * <p>
  * Note that this currently runs on top of TCP.
  * TODO - Change to run on top of RBTP.
  *
  * @author Evan
  */
 public class SimpleFTPClient {
+	
+	private final int port;
+	private final String netEmuIP;
+	private final int netEmuPort;
+	
+	// TODO - Switch to RBTP Socket
+	private final RBTPSocket socket;
+	
+	/**
+	 * Constructor for SFTPClient.
+	 * <p>
+	 * TODO: Switch to use RBTP sockets
+	 * <p>
+	 * TODO: Note we can get rid of DataStreams when using ByteBuffers in RBTP
+	 *
+	 * @param port       - Port on which SFTPClient is bound
+	 * @param netEmuIP   - IP address NetEmu is running on
+	 * @param netEmuPort - Port NetEmu is bound to
+	 */
+	public SimpleFTPClient(int port, String netEmuIP, int netEmuPort) throws IOException {
+		this.port = port;
+		this.netEmuIP = netEmuIP;
+		this.netEmuPort = netEmuPort;
+		
+		socket = new RBTPSocket();
+		socket.connect(new RBTPSocketAddress(new InetSocketAddress(netEmuIP, netEmuPort), 1000));
+	}
+	
+	/**
+	 * Requests that RBTP use the provided window size.
+	 *
+	 * @param windowSize - proposed window size
+	 */
+	public synchronized void setWindowSize(int windowSize) {
+		socket.getConnection().setWindowSize(windowSize);
+	}
+	
+	/**
+	 * Sends a file to the SFTP server via PUT.
+	 *
+	 * @param filename    - the file to PUT
+	 * @throws FileNotFoundException if the file is not found at the server.
+	 * @throws IOException if the connection is lost.
+	 */
+	/*public boolean put(String filename) throws IOException {
+		// TODO switch to RBTP (Bytestream)
+		byte putRequest[] = SFTP.buildMessage(SFTP.PUT, filename.getBytes());
+		byte response[];
+		int responseLength;
 
-    private final int    port;
-    private final String netEmuIP;
-    private final int    netEmuPort;
+		// Send GET
+		output.write(putRequest);
 
-    // TODO - Switch to RBTP Socket
-    private final RBTPSocket socket;
+		// Listen for response (IOException on timeout)
+		responseLength = input.readInt();
+		response = new byte[responseLength];
 
-    /**
-     * Constructor for SFTPClient.
-     *
-     * TODO: Switch to use RBTP sockets
-     *
-     * TODO: Note we can get rid of DataStreams when using ByteBuffers in RBTP
-     *
-     * @param port          - Port on which SFTPClient is bound
-     * @param netEmuIP      - IP address NetEmu is running on
-     * @param netEmuPort    - Port NetEmu is bound to
-     */
-    public SimpleFTPClient(int port, String netEmuIP, int netEmuPort) throws IOException {
-        this.port = port;
-        this.netEmuIP = netEmuIP;
-        this.netEmuPort = netEmuPort;
+		input.readFully(response);
 
-        socket = new RBTPSocket();
-        socket.connect(new RBTPSocketAddress(new InetSocketAddress(netEmuIP, netEmuPort), 1000));
-    }
-
-    /**
-     * Requests that RBTP use the provided window size.
-     *
-     * @param windowSize    - proposed window size
-     */
-    public synchronized void setWindowSize(int windowSize) {
-        // TODO: Implement when RBTP sockets used
-    }
-
-    /**
-     * Sends a file to the SFTP server via PUT.
-     *
-     * @param filename    - the file to PUT
-     * @throws FileNotFoundException if the file is not found at the server.
-     * @throws IOException if the connection is lost.
-     */
-    /*public boolean put(String filename) throws IOException {
-        // TODO switch to RBTP (Bytestream)
-        byte putRequest[] = SFTP.buildMessage(SFTP.PUT, filename.getBytes());
-        byte response[];
-        int responseLength;
-
-        // Send GET
-        output.write(putRequest);
-
-        // Listen for response (IOException on timeout)
-        responseLength = input.readInt();
-        response = new byte[responseLength];
-
-        input.readFully(response);
-
-        // TODO Implement this when GET works with RBTP
-        return true;
-    }*/
-
-    /**
-     * Fetches a file from the SFTP server via GET.
-     *
-     * @param filename    - the file to GET
-     * @return the requested file, in bytes.
-     * @throws IOException if the connection is lost.
-     */
-    public byte[] get(String filename) throws IOException {
-        byte getRequest[] = SimpleFTP.buildMessage(SimpleFTP.GET, filename.getBytes("UTF-8"));
-        
-        socket.write(ByteBuffer.wrap(getRequest));
-        
-        ByteBuffer buffer = ByteBuffer.allocate(4);
-        do {
-            socket.read(buffer);
-        } while(buffer.position() < 4);
-        buffer.flip();
-        
-        ByteBuffer content = ByteBuffer.allocate(buffer.getInt());
-        
-        do {
-            socket.read(content);
-        } while(content.hasRemaining());
-        
-        System.out.println("Finished reading " + content.capacity() + " bytes");
-        
-        return content.array();
-    }
+		// TODO Implement this when GET works with RBTP
+		return true;
+	}*/
+	
+	/**
+	 * Fetches a file from the SFTP server via GET.
+	 *
+	 * @param filename - the file to GET
+	 * @return the requested file, in bytes.
+	 * @throws IOException if the connection is lost.
+	 */
+	public byte[] get(String filename) throws IOException {
+		byte getRequest[] = SimpleFTP.buildMessage(SimpleFTP.GET, filename.getBytes("UTF-8"));
+		
+		socket.write(ByteBuffer.wrap(getRequest));
+		
+		ByteBuffer buffer = ByteBuffer.allocate(4);
+		do {
+			socket.read(buffer);
+		} while(buffer.position() < 4);
+		buffer.flip();
+		
+		ByteBuffer content = ByteBuffer.allocate(buffer.getInt());
+		
+		do {
+			socket.read(content);
+		} while(content.hasRemaining());
+		
+		System.out.println("Finished reading " + content.capacity() + " bytes");
+		
+		return content.array();
+	}
 }

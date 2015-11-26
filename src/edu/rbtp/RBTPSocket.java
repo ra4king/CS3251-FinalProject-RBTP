@@ -35,8 +35,9 @@ public class RBTPSocket {
 	}
 	
 	public void connect(RBTPSocketAddress address) throws IOException {
-		if(connection != null)
+		if(connection != null) {
 			throw new IllegalStateException("Already connected.");
+		}
 		
 		connection = new RBTPConnection();
 		NetworkManager.getInstance().bindSocketToAnyPort(connection);
@@ -53,7 +54,7 @@ public class RBTPSocket {
 	}
 	
 	public int write(ByteBuffer buffer) {
-		return connection.write(buffer, blocking);
+		return connection.write(buffer);
 	}
 	
 	public boolean isClosed() {

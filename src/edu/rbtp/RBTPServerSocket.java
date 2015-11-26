@@ -15,7 +15,8 @@ public class RBTPServerSocket {
 	private LinkedBlockingQueue<RBTPSocket> connectionsToAccept;
 	private boolean blocking = true;
 	
-	public RBTPServerSocket() {}
+	public RBTPServerSocket() {
+	}
 	
 	public RBTPServerSocket(int port) throws IOException {
 		bind(port);
@@ -40,20 +41,23 @@ public class RBTPServerSocket {
 	}
 	
 	public void listen() {
-		if(serverHandler == null)
+		if(serverHandler == null) {
 			throw new IllegalStateException("SocketServer not bound.");
+		}
 		
 		connectionsToAccept = new LinkedBlockingQueue<>();
 		serverHandler.setAcceptHandler((connection) -> connectionsToAccept.offer(new RBTPSocket(blocking, connection)));
 	}
 	
 	public RBTPSocket accept() {
-		if(connectionsToAccept == null)
+		if(connectionsToAccept == null) {
 			throw new IllegalStateException("SocketServer not listening.");
+		}
 		
 		try {
 			return blocking ? connectionsToAccept.take() : connectionsToAccept.poll();
-		} catch(Exception exc) {
+		}
+		catch(Exception exc) {
 			exc.printStackTrace();
 			return null;
 		}

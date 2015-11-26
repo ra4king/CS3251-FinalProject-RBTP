@@ -12,8 +12,9 @@ public class RBTPSocketAddress {
 	
 	/**
 	 * Creates an RBTP Socket Address using the combination of a network address and the RBTP port.
+	 *
 	 * @param address Socket Address, which is the address and UDP port of the remote machine running the NetworkManager
-	 * @param port the RBTP port
+	 * @param port    the RBTP port
 	 */
 	public RBTPSocketAddress(InetSocketAddress address, int port) {
 		this.setAddress(address);
@@ -38,10 +39,11 @@ public class RBTPSocketAddress {
 	
 	@Override
 	public boolean equals(Object other) {
-		if(!(other instanceof RBTPSocketAddress))
+		if(!(other instanceof RBTPSocketAddress)) {
 			return false;
+		}
 		
-		RBTPSocketAddress otherAddress= (RBTPSocketAddress)other;
+		RBTPSocketAddress otherAddress = (RBTPSocketAddress)other;
 		return this.address.equals(otherAddress.address) && this.port == otherAddress.port;
 	}
 	
