@@ -104,6 +104,18 @@ RBTPServer.java
 - Middleman through which NetworkManager and RBTPconnections communicate; RBTPConnections bind to this
   rather than the NetworkManager, allowing each RBTPserver to handle its own multiplexing.
 
+-----------
+  COMPILE
+-----------
+
+To compile all the files, create a folder 'out/' for the destination files, then navigate to 'src/' and open a command prompt in that directory:
+
+    javac -d ../out/ simpleftp/SimpleFTPClientLauncher.java simpleftp/SimpleFTPServerLauncher.java
+
+To create the jars, navigate to the 'out/' directory and open a command prompt there:
+
+    jar -cfm SimpleFTPClient.jar ../src/ClientManifest.mf *
+    jar -cfm SimpleFTPServer.jar ../src/ServerManifest.mf *
 
 ---------
   USAGE
