@@ -3,9 +3,9 @@ package simpleftp;
 import java.nio.ByteBuffer;
 
 /**
- * SFTP protocol definitions
- * <p>
- * SFTP Message format
+ * SimpleFTP protocol definitions
+ *
+ * SimpleFTP Message format
  * [data len][opcode][data ...]
  * + data len: 4 bytes
  * + opcode: 1 byte
@@ -24,8 +24,8 @@ public class SimpleFTP {
 	
 	
 	/**
-	 * Helper function to build an SFTP message.
-	 * <p>
+	 * Helper function to build an SimpleFTP message.
+	 *
 	 * NOTE: Maximum filesize of (2^32) bytes
 	 */
 	public static byte[] buildMessage(byte opcode, byte content[]) {

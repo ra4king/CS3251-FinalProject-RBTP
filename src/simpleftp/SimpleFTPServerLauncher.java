@@ -8,6 +8,11 @@ import java.util.Scanner;
 import edu.rbtp.impl.NetworkManager;
 import simpleftp.impl.SimpleFTPServer;
 
+/**
+ * Launches and runs a SimpleFTP server.
+ *
+ * @author Evan Bailey
+ */
 public class SimpleFTPServerLauncher {
 	
 	private static void changeWindowSize(SimpleFTPServer server, String windowSizeStr) {
@@ -25,10 +30,10 @@ public class SimpleFTPServerLauncher {
 	
 	/**
 	 * Entry-point for execution.
-	 * <p>
+	 *
 	 * To run:
-	 * $ java SFTPServer X A P
-	 * X: Even port number SFTPServer will bind to. Must be client port + 1.
+	 * $ java SFTPServer X A P [NOTE: use JAR executable]
+	 * X: Even port number SimpleFTPServer will bind to. Must be client port + 1.
 	 * A: IP address of NetEmu
 	 * P: UDP port number of NetEmu
 	 *

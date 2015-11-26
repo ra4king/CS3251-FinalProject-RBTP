@@ -13,8 +13,7 @@ import edu.rbtp.impl.NetworkManager;
 import simpleftp.impl.SimpleFTPClient;
 
 /**
- * TODO Documentation
- * TODO Format console output to look nicer
+ * Launches and runs a SimpleFTP client.
  *
  * @author Evan Bailey
  */
@@ -116,9 +115,9 @@ public class SimpleFTPClientLauncher {
 	
 	/**
 	 * Entry-point for execution.
-	 * <p>
+	 *
 	 * To run:
-	 * $ java SFTPClient X A P
+	 * $ java SFTPClient X A P [NOTE: use JAR executable]
 	 * X: Even port number SFTPClient will bind to. Must be server port - 1.
 	 * A: IP address of NetEmu
 	 * P: UDP port number of NetEmu

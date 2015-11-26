@@ -10,9 +10,7 @@ import edu.rbtp.RBTPSocketAddress;
 import simpleftp.SimpleFTP;
 
 /**
- * TODO Documentation
- * TODO ex: SFTP client commands (disconnect, get, put, etc)
- * <p>
+ * Implementation of a SimpleFTP client.
  *
  * @author Evan
  */
@@ -21,7 +19,7 @@ public class SimpleFTPClient {
 	
 	/**
 	 * Constructor for SFTPClient.
-	 * <p></p>
+	 *
 	 * @param port       - Port on which SFTPClient is bound
 	 * @param netEmuIP   - IP address NetEmu is running on
 	 * @param netEmuPort - Port NetEmu is bound to
