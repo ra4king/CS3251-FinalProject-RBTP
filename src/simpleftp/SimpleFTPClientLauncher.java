@@ -103,7 +103,7 @@ public class SimpleFTPClientLauncher {
 			}
 			// Unsuccessful GET
 			else if(SimpleFTP.ERR == opcode) {
-				System.out.print("Server returned an error message (length " + content.length + " bytes):");
+				System.out.print("Server returned an error message: ");
 				errorMessage = new String(content, "UTF-8");
 				
 				System.out.println(errorMessage);
@@ -171,7 +171,10 @@ public class SimpleFTPClientLauncher {
 				 */
 				else if(input.equalsIgnoreCase("disconnect")) {
 					System.out.println("Shutting down client.");
-					// TODO client.kill() ?
+					if(client != null) {
+						client.close();
+					}
+					
 					run = false;
 				}
 				
@@ -258,6 +261,10 @@ public class SimpleFTPClientLauncher {
 			System.out.println("An IOException was encountered while the client was running.");
 			System.out.println("Please restart client and try again.");
 			System.exit(0);
+		}
+		
+		if(client != null) {
+			client.close();
 		}
 	}
 	

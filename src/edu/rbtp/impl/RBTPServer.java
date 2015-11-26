@@ -117,7 +117,7 @@ public class RBTPServer implements Bindable {
 					public void unbind() {
 						clients.remove(packet.address);
 						
-						if(clients.isEmpty()) {
+						if(closed && clients.isEmpty()) {
 							serverBindingInterface.unbind();
 						}
 					}

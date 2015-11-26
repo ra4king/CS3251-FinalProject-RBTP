@@ -35,9 +35,8 @@ public class SimpleFTPServerLauncher {
 	 * @param args - command-line arguments
 	 */
 	public static void main(String args[]) {
-		int port, netEmuPort;
-		String netEmuIP;
-		SimpleFTPServer server = null;
+		int port;
+		SimpleFTPServer server;
 		
 		if(args.length != 3) {
 			System.out.println("Incorrect parameters. Usage: $ java SFTPClient X A P");
@@ -49,9 +48,6 @@ public class SimpleFTPServerLauncher {
 			port = Integer.parseInt(args[0]);
 			NetworkManager.init(port);
 			
-			netEmuIP = args[1]; // unused
-			netEmuPort = Integer.parseInt(args[2]); // unused
-			
 			// Create server
 			server = new SimpleFTPServer();
 			
@@ -61,8 +57,11 @@ public class SimpleFTPServerLauncher {
 			new Thread(new InputManager(server)).start();
 			
 			// Listen for connections
-			server.listen();
-			
+			try {
+				server.listen();
+			}
+			catch(Exception exc) {
+			}
 		}
 		catch(ConnectException cex) {
 			System.out.println("ERROR: Connection failed.");
@@ -79,7 +78,6 @@ public class SimpleFTPServerLauncher {
 	}
 
 	private static class InputManager implements Runnable {
-		boolean run = true;
 		Scanner scanner = new Scanner(System.in);
 		SimpleFTPServer server;
 		String input;
@@ -97,7 +95,7 @@ public class SimpleFTPServerLauncher {
 		@Override
 		public void run() {
 			// Listen for commands
-			while(run) {
+			while(true) {
 				System.out.print("> ");
 				input = scanner.nextLine();
 				
@@ -107,6 +105,7 @@ public class SimpleFTPServerLauncher {
 				if(input.equalsIgnoreCase("terminate")) {
 					System.out.println("Shutting down server.");
 					server.close();
+					break;
 				}
 				
 				/*
@@ -132,7 +131,5 @@ public class SimpleFTPServerLauncher {
 				}
 			}
 		}
-		
 	}
-	
 }

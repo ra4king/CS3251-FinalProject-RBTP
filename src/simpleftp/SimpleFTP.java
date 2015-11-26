@@ -20,6 +20,7 @@ public class SimpleFTP {
 	public static final byte GET = 0x01;
 	public static final byte PUT = 0x02;
 	public static final byte RSP = 0x03;
+	public static final byte FIN = 0x04;
 	
 	
 	/**

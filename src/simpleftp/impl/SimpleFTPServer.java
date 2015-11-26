@@ -52,6 +52,7 @@ public class SimpleFTPServer {
 	 */
 	public synchronized void close() {
 		listen = false;
+		serverSocket.close();
 	}
 	
 	/**
@@ -60,16 +61,13 @@ public class SimpleFTPServer {
 	 * @throws IOException if one is encountered =.
 	 */
 	public void listen() throws IOException {
-		RBTPSocket clientSocket;
-		Thread clientThread;
-		
 		serverSocket.listen();
 		
 		while(listen) {
-			clientSocket = serverSocket.accept();
+			System.out.println("Waiting for new connection");
+			RBTPSocket clientSocket = serverSocket.accept();
 			
-			clientThread = new Thread(new ClientHandler(clientSocket));
-			clientThread.setDaemon(false); // Any existing connections will finish before exiting
+			Thread clientThread = new Thread(new ClientHandler(clientSocket));
 			clientThread.start();
 		}
 		
@@ -175,7 +173,7 @@ public class SimpleFTPServer {
 		public void run() {
 			ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
 			
-			while(listen) {
+			while(listen && !clientSocket.isClosed()) {
 				try {
 					buffer.clear();
 					do {
@@ -204,7 +202,7 @@ public class SimpleFTPServer {
 						while(response.hasRemaining())
 							clientSocket.write(response);
 					} else if(SimpleFTP.PUT == opcode) {
-						if (isMidPUT) {
+						if(!isMidPUT) {
 							ByteBuffer response = ByteBuffer.wrap(handlePut(content));
 							while (response.hasRemaining())
 								clientSocket.write(response);
@@ -221,6 +219,10 @@ public class SimpleFTPServer {
 
 							isMidPUT = false;
 						}
+					} else if(SimpleFTP.FIN == opcode) {
+						System.out.println("User closed connection.");
+						clientSocket.close();
+						break;
 					}
 				}
 				catch(IOException ioex) {

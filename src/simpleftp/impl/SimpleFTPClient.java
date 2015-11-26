@@ -17,12 +17,6 @@ import simpleftp.SimpleFTP;
  * @author Evan
  */
 public class SimpleFTPClient {
-	
-	private final int port;
-	private final String netEmuIP;
-	private final int netEmuPort;
-	
-	// TODO - Switch to RBTP Socket
 	private final RBTPSocket socket;
 	
 	/**
@@ -33,10 +27,6 @@ public class SimpleFTPClient {
 	 * @param netEmuPort - Port NetEmu is bound to
 	 */
 	public SimpleFTPClient(int port, String netEmuIP, int netEmuPort) throws IOException {
-		this.port = port;
-		this.netEmuIP = netEmuIP;
-		this.netEmuPort = netEmuPort;
-		
 		socket = new RBTPSocket();
 		socket.connect(new RBTPSocketAddress(new InetSocketAddress(netEmuIP, netEmuPort), 1000));
 	}
@@ -122,8 +112,16 @@ public class SimpleFTPClient {
 			socket.read(content);
 		} while(content.hasRemaining());
 		
-		System.out.println("Finished reading " + content.capacity() + " bytes");
-		
 		return content.array();
+	}
+	
+	public void close() {
+		try {
+			socket.write(ByteBuffer.wrap(SimpleFTP.buildMessage(SimpleFTP.FIN, new byte[0])));
+		}
+		catch(Exception exc) {
+		}
+		
+		socket.close();
 	}
 }

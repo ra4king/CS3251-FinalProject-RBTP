@@ -27,8 +27,9 @@ public class RBTPConnection implements Bindable {
 	}
 	
 	private volatile RBTPConnectionState state;
-	private int maxWindowSize = 50000;
+	private int maxWindowSize = 100000;
 	private final long TIMEOUT = 200;
+	private final int TIMEOUT_COUNT_LIMIT = 100;
 	
 	private int duplicateCount = 0;
 	private int dataPackets = 0;
@@ -218,9 +219,6 @@ public class RBTPConnection implements Bindable {
 		if(block) {
 			int read;
 			while((read = inputStreamThread.read(data)) == 0 && !isClosed()) {
-				if(PRINT_DEBUG) {
-					System.out.println("READ: Waiting for data to read...");
-				}
 				try {
 					Thread.sleep(100);
 				}
@@ -409,7 +407,7 @@ public class RBTPConnection implements Bindable {
 						}
 						
 						timeoutCount++;
-						if(timeoutCount >= 100) {
+						if(timeoutCount >= TIMEOUT_COUNT_LIMIT) {
 							if(PRINT_DEBUG) {
 								System.out.println("CONNECTION (OST): Consecutive timeout count limit reached. Closing...");
 							}
@@ -789,7 +787,7 @@ public class RBTPConnection implements Bindable {
 						     state == RBTPConnectionState.SYN_RCVD) {
 							if(synFinLastPacket != null) {
 								retryCount++;
-								if(retryCount >= 20) {
+								if(retryCount >= TIMEOUT_COUNT_LIMIT) {
 									if(PRINT_DEBUG) {
 										System.out.println("CONNECTION (IST): Consecutive timeout limit reached. Closing...");
 									}
