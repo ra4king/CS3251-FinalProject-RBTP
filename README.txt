@@ -69,7 +69,7 @@ SimpleFTPServerLauncher.java
 - This file launches and runs a SimpleFTP Server
 
 SimpleFTPClient.java
-- SimpleFTP clinet implementation
+- SimpleFTP client implementation
 
 SimpleFTPServer.java
 - SimpleFTP server implementation
@@ -81,10 +81,10 @@ RBTPSocket.java
 - Defines an RBTP socket
 
 RBTPSocketAddress.java
-- Data structure used by RBTP sockets (contains InetAddress, NetworkManager, RBTP port)
+- Data structure used by RBTP sockets (contains InetAddress and RBTP port)
 
 BufferPool.java
-- Allows access to memory-managed buffers
+- Manages access to ByteBuffer, which are much faster versions of arrays
 
 Bindable.java
 - Defines the Bindable interface, denoting an object which can be bound to a connection
@@ -93,10 +93,10 @@ BindingInterface.java
 - Defines a relationship between a Bindable and the connection it is bound to
 
 NetworkManager.java
-- Handles multiplexing. Reads from UDP socket and passes packets to the connection associated with it
+- Handles multiplexing of UDP packets. Reads from UDP socket and passes packets to the connection associated with it
 
 RBTPConnection.java
-- Implementation of RBTP
+- Implementation of RBTP for each socket
 
 RBTPPacket.java
 - Definition of an RBTP packets
@@ -104,6 +104,7 @@ RBTPPacket.java
 RBTPServer.java
 - Middleman through which NetworkManager and RBTPconnections communicate; RBTPConnections bind to this
   rather than the NetworkManager, allowing each RBTPserver to handle its own multiplexing.
+
 
 -----------
   COMPILE
@@ -117,6 +118,7 @@ To create the jars, navigate to the 'out/' directory and open a command prompt t
 
     jar -cfm SimpleFTPClient.jar ../src/ClientManifest.mf *
     jar -cfm SimpleFTPServer.jar ../src/ServerManifest.mf *
+
 
 ---------
   USAGE

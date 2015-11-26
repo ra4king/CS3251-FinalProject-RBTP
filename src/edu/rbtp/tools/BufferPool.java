@@ -29,7 +29,7 @@ public class BufferPool {
 		}
 		
 		if(best == null) {
-			best = new ByteBufferWrapper(ByteBuffer.allocate(size));
+			best = new ByteBufferWrapper(ByteBuffer.allocateDirect(size));
 			buffersCreated++;
 		}
 		else {
