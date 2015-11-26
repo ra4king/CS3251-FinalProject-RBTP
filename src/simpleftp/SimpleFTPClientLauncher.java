@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
 
@@ -43,7 +44,35 @@ public class SimpleFTPClientLauncher {
 			System.out.println("Incorrect parameters, window size must be integer.");
 		}
 	}
-	
+
+	private static void doPut(SimpleFTPClient client, String filename) {
+		byte fileBytes[];
+		Path path = Paths.get(filename);
+
+		// Check that file exists
+		if (Files.exists(path)) {
+			try {
+				fileBytes = Files.readAllBytes(path);
+
+				// If successful:
+				if (client.put(filename, fileBytes)) {
+					System.out.println("File sent to server.");
+				}
+				// If server rejected PUT request:
+				else {
+					System.out.println("Server rejected PUT request. File probably exists on server already.");
+				}
+			}
+			catch(IOException ioex) {
+				System.out.println("IOException encountered while attempting PUT, aborting.");
+			}
+		}
+		// Alert if file does not exist
+		else {
+			System.out.println("ERROR: File not found");
+		}
+	}
+
 	private static void doGet(SimpleFTPClient client, String filename) {
 		byte opcode;
 		byte response[], content[];
@@ -82,9 +111,6 @@ public class SimpleFTPClientLauncher {
 		}
 		catch(IOException ioex) {
 			System.out.println("IOException encountered while attempting GET, aborting.");
-			
-			// TODO: Temp
-			ioex.printStackTrace();
 		}
 	}
 	
@@ -192,7 +218,19 @@ public class SimpleFTPClientLauncher {
 				 */
 				else if(input.toLowerCase().startsWith("put ")
 				          || input.toLowerCase().startsWith("post ")) {
-					// TODO - Implement
+					if(connected) {
+						// Get filename argument
+						inputArray = input.split(" ");
+
+						if(inputArray.length == 2) {
+							// inputArray[1] is the filename
+							doPut(client, inputArray[1]);
+						} else {
+							System.out.println("ERROR: Incorrect usage, must match: put <filename>");
+						}
+					} else {
+						System.out.println("ERROR: Client not currently connected.");
+					}
 				}
 
 				/*

@@ -13,8 +13,6 @@ import simpleftp.SimpleFTP;
  * TODO Documentation
  * TODO ex: SFTP client commands (disconnect, get, put, etc)
  * <p>
- * Note that this currently runs on top of TCP.
- * TODO - Change to run on top of RBTP.
  *
  * @author Evan
  */
@@ -29,11 +27,7 @@ public class SimpleFTPClient {
 	
 	/**
 	 * Constructor for SFTPClient.
-	 * <p>
-	 * TODO: Switch to use RBTP sockets
-	 * <p>
-	 * TODO: Note we can get rid of DataStreams when using ByteBuffers in RBTP
-	 *
+	 * <p></p>
 	 * @param port       - Port on which SFTPClient is bound
 	 * @param netEmuIP   - IP address NetEmu is running on
 	 * @param netEmuPort - Port NetEmu is bound to
@@ -60,27 +54,47 @@ public class SimpleFTPClient {
 	 * Sends a file to the SFTP server via PUT.
 	 *
 	 * @param filename    - the file to PUT
+	 * @param fileBytes	  - bytes of the file to PUT
+	 * @returns	true if the file was PUT, else false.
 	 * @throws FileNotFoundException if the file is not found at the server.
 	 * @throws IOException if the connection is lost.
 	 */
-	/*public boolean put(String filename) throws IOException {
-		// TODO switch to RBTP (Bytestream)
-		byte putRequest[] = SFTP.buildMessage(SFTP.PUT, filename.getBytes());
-		byte response[];
-		int responseLength;
+	public boolean put(String filename, byte fileBytes[]) throws IOException {
+		byte putRequest[] = SimpleFTP.buildMessage(SimpleFTP.PUT, filename.getBytes("UTF-8"));
 
-		// Send GET
-		output.write(putRequest);
+		// Request to PUT a file (content is filename)
+		socket.write(ByteBuffer.wrap(putRequest));
 
-		// Listen for response (IOException on timeout)
-		responseLength = input.readInt();
-		response = new byte[responseLength];
+		// First 4 bytes denotes length of remainder of message
+		ByteBuffer buffer = ByteBuffer.allocate(4);
+		do {
+			socket.read(buffer);
+		} while (buffer.position() < 4);
+		buffer.flip();
 
-		input.readFully(response);
+		ByteBuffer content = ByteBuffer.allocate(buffer.getInt());
 
-		// TODO Implement this when GET works with RBTP
-		return true;
-	}*/
+		// Read remainder of message
+		do {
+			socket.read(content);
+		} while (content.hasRemaining());
+
+		// Check response type
+		byte contentBytes[] = content.array();
+
+		if (SimpleFTP.RSP == contentBytes[0]) {
+			// Prepare to send file bytes
+			byte putPacket[] = SimpleFTP.buildMessage(SimpleFTP.PUT, fileBytes);
+
+			// Send final PUT packet
+			socket.write(ByteBuffer.wrap(putPacket));
+
+			return true;
+		}
+
+		// Treat any OPCODE besides RSP as a PUT request rejection
+		return false;
+	}
 	
 	/**
 	 * Fetches a file from the SFTP server via GET.
@@ -93,7 +107,8 @@ public class SimpleFTPClient {
 		byte getRequest[] = SimpleFTP.buildMessage(SimpleFTP.GET, filename.getBytes("UTF-8"));
 		
 		socket.write(ByteBuffer.wrap(getRequest));
-		
+
+		// First 4 bytes denotes length of remainder of message
 		ByteBuffer buffer = ByteBuffer.allocate(4);
 		do {
 			socket.read(buffer);
@@ -101,7 +116,8 @@ public class SimpleFTPClient {
 		buffer.flip();
 		
 		ByteBuffer content = ByteBuffer.allocate(buffer.getInt());
-		
+
+		// Read remainder of message
 		do {
 			socket.read(content);
 		} while(content.hasRemaining());

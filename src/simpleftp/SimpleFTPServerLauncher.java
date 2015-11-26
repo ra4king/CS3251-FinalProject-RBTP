@@ -77,8 +77,7 @@ public class SimpleFTPServerLauncher {
 			System.exit(0);
 		}
 	}
-	
-	// TODO - This doesn;t work after some console output
+
 	private static class InputManager implements Runnable {
 		boolean run = true;
 		Scanner scanner = new Scanner(System.in);
@@ -87,9 +86,9 @@ public class SimpleFTPServerLauncher {
 		String inputArray[];
 		
 		/**
-		 * TODO Documentation
+		 * Constructor for InputManager.
 		 *
-		 * @param server
+		 * @param server - SimpleFTP server associated with this InputManager
 		 */
 		public InputManager(SimpleFTPServer server) {
 			this.server = server;
@@ -100,7 +99,7 @@ public class SimpleFTPServerLauncher {
 			// Listen for commands
 			while(run) {
 				System.out.print("> ");
-				input = scanner.nextLine(); // TODO must be in Inputthread
+				input = scanner.nextLine();
 				
 				/*
 				 * TERMINATE COMMAND

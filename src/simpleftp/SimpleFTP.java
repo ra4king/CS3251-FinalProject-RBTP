@@ -15,9 +15,6 @@ import java.nio.ByteBuffer;
  */
 public class SimpleFTP {
 	
-	/* SFTP Identifier Prefix */
-	public static final short SFTP_PREFIX = (short)0xFADE;
-	
 	/* OPCODES */
 	public static final byte ERR = 0x00;
 	public static final byte GET = 0x01;
@@ -33,8 +30,7 @@ public class SimpleFTP {
 	public static byte[] buildMessage(byte opcode, byte content[]) {
 		int messageLength = 1 + content.length; // in bytes, opcode + content
 		ByteBuffer bbuff = ByteBuffer.allocate(4 + messageLength); // +4 makes room for length
-		
-		//bbuff.putShort(SFTP_PREFIX);
+
 		bbuff.putInt(messageLength);
 		bbuff.put(opcode);
 		bbuff.put(content);

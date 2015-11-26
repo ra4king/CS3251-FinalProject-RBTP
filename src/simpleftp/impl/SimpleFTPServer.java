@@ -1,5 +1,6 @@
 package simpleftp.impl;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -77,14 +78,13 @@ public class SimpleFTPServer {
 	
 	/**
 	 * TODO: Documentation
-	 * <p>
-	 * TODO: Switch to RBTP sockets
-	 * <p>
-	 * TODO: If a file not found is requested first, IOException is throws for following gets
 	 *
 	 * @author Evan Bailey
 	 */
 	private class ClientHandler implements Runnable {
+		boolean isMidPUT = false;
+		String putFilename; // Must keep track of this for 2nd half of PUT
+
 		RBTPSocket clientSocket;
 		
 		/**
@@ -97,7 +97,43 @@ public class SimpleFTPServer {
 			this.clientSocket = clientSocket;
 			System.out.println("Accepted client connection");
 		}
-		
+
+		private byte[] handlePut(byte content[]) {
+			byte response[];
+			Path path;
+			String filename, errorMessage, message;
+
+			System.out.println("Handling PUT request...");
+
+			try {
+				filename = new String(content, "UTF-8");
+				path = Paths.get(filename);
+
+				// If the file exists locally, respond with error
+				if (Files.exists(path)) {
+					errorMessage = "File exists on server, overwrite not allowed";
+					response = SimpleFTP.buildMessage(SimpleFTP.ERR, errorMessage.getBytes("UTF-8"));
+				}
+				// Else continue with the PUT request
+				else {
+					message = "";
+					response = SimpleFTP.buildMessage(SimpleFTP.RSP, message.getBytes("UTF-8"));
+
+					// Keep track of filename for second part of PUT
+					putFilename = filename;
+
+					isMidPUT = true;
+				}
+			}
+			catch(UnsupportedEncodingException ueex) {
+				// Never reached
+				errorMessage = "Server does not support UTF-8 encoding";
+				response = SimpleFTP.buildMessage(SimpleFTP.ERR, errorMessage.getBytes());
+			}
+
+			return response;
+		}
+
 		private byte[] handleGet(byte content[]) {
 			byte response[];
 			String errorMessage, filename;
@@ -112,7 +148,6 @@ public class SimpleFTPServer {
 				if(Files.exists(path)) {
 					response = SimpleFTP.buildMessage(SimpleFTP.RSP, Files.readAllBytes(path));
 				} else {
-					// TODO for some reason, error message not being sent?
 					errorMessage = "File not found";
 					response = SimpleFTP.buildMessage(SimpleFTP.ERR, errorMessage.getBytes("UTF-8"));
 				}
@@ -131,17 +166,6 @@ public class SimpleFTPServer {
 			System.out.println("Handle get finished, returning response. opcode: " + response[0]);
 			
 			return response;
-		}
-		
-		private boolean handlePut(byte content[]) {
-			// TODO: Implement
-			// Put request received
-			// If file exists locally, respond err
-			// Else respond RSP
-			// Next message should be PUT
-			// If not, just err and return
-			// If put, get file and save locally knowing file doesnt exist
-			return false;
 		}
 		
 		/**
@@ -180,7 +204,23 @@ public class SimpleFTPServer {
 						while(response.hasRemaining())
 							clientSocket.write(response);
 					} else if(SimpleFTP.PUT == opcode) {
-						// TODO Implement (extra credit)
+						if (isMidPUT) {
+							ByteBuffer response = ByteBuffer.wrap(handlePut(content));
+							while (response.hasRemaining())
+								clientSocket.write(response);
+						}
+						else {
+							// We do not send anything back to client
+							FileOutputStream fouts = new FileOutputStream(putFilename);
+
+							// Write bytes
+							fouts.write(content);
+							fouts.close();
+
+							System.out.println("Received file " + putFilename + " from client.");
+
+							isMidPUT = false;
+						}
 					}
 				}
 				catch(IOException ioex) {
