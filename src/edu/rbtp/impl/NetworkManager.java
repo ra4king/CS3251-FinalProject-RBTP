@@ -126,7 +126,7 @@ public class NetworkManager {
 			connectionMap.remove(port);
 		}
 		
-		private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(4096);
+		private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(8192);
 		
 		@Override
 		public synchronized void accept(RBTPPacket packet) {

@@ -27,7 +27,7 @@ public class TestClient implements Runnable {
 			System.out.println("TEST: Connecting...");
 			
 			socket.connect(new RBTPSocketAddress(new InetSocketAddress("localhost", 61), 1000));
-			socket.getConnection().setWindowSize(1000000);
+			socket.getConnection().setWindowSize(1024 * 1024);
 			
 			System.out.println("TEST: Connected!");
 			
@@ -53,7 +53,7 @@ public class TestClient implements Runnable {
 			}
 			
 			System.out.printf("TEST: Written %d total bytes.\n", total * 4);
-
+			
 			buffer.clear();
 			
 			boolean allMatch = true;
@@ -70,7 +70,7 @@ public class TestClient implements Runnable {
 					time = System.nanoTime();
 				}
 				
-				System.out.printf("TEST: Read %d bytes. Read so far: %d bytes.\n", read, count * 4);
+				System.out.printf("TEST: Read %d bytes. Read so far: %d bytes.\n", read, count * 4 + read);
 				
 				while(buffer.remaining() >= 4) {
 					int nextCount = count++, nextBuf = buffer.getInt();

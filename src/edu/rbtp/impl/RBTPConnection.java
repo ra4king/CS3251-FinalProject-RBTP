@@ -26,9 +26,11 @@ public class RBTPConnection implements Bindable {
 		CLOSING, TIMED_WAIT, CLOSE_WAIT, LAST_ACK
 	}
 	
+	private static final int MAX_PACKET_SIZE = 1456;
+	
 	private volatile RBTPConnectionState state;
 	private int maxWindowSize = 10000;
-	private final long TIMEOUT = 200;
+	private final long TIMEOUT = 100;
 	private final int TIMEOUT_COUNT_LIMIT = 100;
 	
 	private int duplicateCount = 0;
@@ -265,8 +267,6 @@ public class RBTPConnection implements Bindable {
 		private final ByteBuffer outputBuffer = ByteBuffer.allocateDirect(8 * 1024 * 1024); // 8MB for now
 		private long windowFirstSequenceNumber = -1, nextSequenceNumber = -1;
 		private int remoteReceiveWindowSize;
-		
-		private final int MAX_PACKET_SIZE = 1456;
 		
 		RBTPOutputStreamThread() {
 			lastSent = new ArrayList<>();
@@ -626,11 +626,7 @@ public class RBTPConnection implements Bindable {
 		 */
 		private void ackReceivedPackets() {
 			if(packetsReceived.size() > 0) {
-				RBTPPacket ackPacket = new RBTPPacket();
-				ackPacket.ack(true);
-				ackPacket.sequenceNumber((int)outputStreamThread.getNextSequenceNumber()); // doesn't really matter what seqnum is used, it isn't checked anyway
-				
-				ByteBuffer acks = BufferPool.getBuffer(packetsReceived.size() * 4);
+				ArrayList<Integer> acks = new ArrayList<>();
 				
 				synchronized(readBuffer) {
 					if(PRINT_DEBUG) {
@@ -649,7 +645,7 @@ public class RBTPConnection implements Bindable {
 						
 						// Finds the relative location of the packet with regards to the first byte of the readBuffer
 						if(relativeLoc + p.payload().capacity() <= readBuffer.capacity()) {
-							acks.putInt((int)p.sequenceNumber());
+							acks.add((int)p.sequenceNumber());
 							
 							if(relativeLoc >= windowStartOffset) {
 								if(!currSequenceNumbers.containsKey(p.sequenceNumber())) {
@@ -689,22 +685,33 @@ public class RBTPConnection implements Bindable {
 					}
 				}
 				
-				acks.flip();
-				
 				int windowSizeLeft = maxWindowSize;
 				for(long seq : currSequenceNumbers.keySet()) {
 					windowSizeLeft -= currSequenceNumbers.get(seq);
 				}
-				setupPacket(ackPacket, Math.max(windowSizeLeft, 0));
 				
-				if(PRINT_DEBUG) {
-					System.out.println("CONNECTION (IST): Sending ACK packet, packets not acked: " + currSequenceNumbers.size() + ", windowSizeLeft: " + windowSizeLeft);
+				while(acks.size() > 0) {
+					ByteBuffer ackBuf = BufferPool.getBuffer(Math.min(MAX_PACKET_SIZE, acks.size() * 4));
+					while(ackBuf.hasRemaining()) {
+						ackBuf.putInt(acks.remove(acks.size() - 1));
+					}
+					ackBuf.flip();
+					
+					RBTPPacket ackPacket = new RBTPPacket();
+					ackPacket.ack(true);
+					ackPacket.sequenceNumber((int)outputStreamThread.getNextSequenceNumber()); // doesn't really matter what seqnum is used, it isn't checked anyway
+					
+					setupPacket(ackPacket, Math.max(windowSizeLeft, 0));
+					
+					if(PRINT_DEBUG) {
+						System.out.println("CONNECTION (IST): Sending ACK packet, packets not acked: " + currSequenceNumbers.size() + ", windowSizeLeft: " + windowSizeLeft);
+					}
+					
+					ackPacket.metadata(ackBuf);
+					
+					sendPacket.accept(ackPacket);
+					ackPacket.destroy();
 				}
-				
-				ackPacket.metadata(acks);
-				
-				sendPacket.accept(ackPacket);
-				ackPacket.destroy();
 				
 				packetsReceived.clear();
 				

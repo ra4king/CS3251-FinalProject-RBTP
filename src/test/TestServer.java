@@ -26,7 +26,7 @@ public class TestServer implements Runnable {
 				break;
 			}
 			
-			clientSocket.getConnection().setWindowSize(1000000);
+			clientSocket.getConnection().setWindowSize(1024 * 1024);
 			
 			new Thread(new TestServer(clientSocket)).start();
 		}
@@ -69,7 +69,7 @@ public class TestServer implements Runnable {
 					time = System.nanoTime();
 				}
 				
-				System.out.printf("TEST: Read %d bytes. Read so far: %d bytes.\n", read, count * 4);
+				System.out.printf("TEST: Read %d bytes. Read so far: %d bytes.\n", read, count * 4 + read);
 				
 				while(buffer.remaining() >= 4) {
 					int nextCount = count++, nextBuf = buffer.getInt();
