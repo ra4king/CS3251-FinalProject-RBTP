@@ -2,7 +2,6 @@ package test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Random;
 
 import edu.rbtp.RBTPServerSocket;
 import edu.rbtp.RBTPSocket;
@@ -27,6 +26,8 @@ public class TestServer implements Runnable {
 				break;
 			}
 			
+			clientSocket.getConnection().setWindowSize(10000);
+			
 			new Thread(new TestServer(clientSocket)).start();
 		}
 	}
@@ -44,41 +45,42 @@ public class TestServer implements Runnable {
 			
 			ByteBuffer buffer = ByteBuffer.allocate(1000);
 			
-			Random rng = null;
-			
 			long time = System.currentTimeMillis();
 			
-			int seed = 0;
+			buffer.limit(8);
 			
-			int count = 1000;
-			while(count > 0) {
+			do {
+				int read = socket.read(buffer);
+				System.out.println("TEST: Read " + read + " bytes.");
+			} while(buffer.position() < 8);
+			
+			buffer.flip();
+			final int seed = buffer.getInt();
+			final int total = buffer.getInt();
+			
+			//Random rng = new Random(seed = buffer.getInt());
+			
+			boolean allMatch = true;
+			
+			int count = 0;
+			while(count < total) {
+				buffer.clear();
 				int read = socket.read(buffer);
 				buffer.flip();
 				
-				if(rng == null && buffer.remaining() >= 4) {
-					rng = new Random(seed = buffer.getInt());
-					read -= 4;
-				}
-				
-				count -= read;
-				
 				System.out.println("TEST: Read " + read + " bytes.");
 				
-				boolean match = true;
-				
 				while(buffer.remaining() >= 4) {
-					if(rng.nextInt() != buffer.getInt()) {
-						System.out.println("TEST: DID NOT MATCH!");
-						match = false;
-						break;
+					int nextRng = count++, nextBuf = buffer.getInt();
+					if(nextRng != nextBuf) {
+						System.out.println("TEST: DID NOT MATCH! Count: " + nextRng + ", Buf: " + nextBuf);
+						allMatch = false;
 					}
 				}
-				
-				if(match) {
-					System.out.println("TEST: ALL MATCH SO FAR! Remaining to read: " + count);
-				}
-				
-				buffer.compact();
+			}
+			
+			if(allMatch) {
+				System.out.println("TEST: All match!");
 			}
 			
 			long diffTime = System.currentTimeMillis() - time;
@@ -86,26 +88,22 @@ public class TestServer implements Runnable {
 			System.out.printf("TEST: Total bytes read: 1000, in %.3f seconds\n", (diffTime / 1000.0));
 			
 			buffer.clear();
+
+//			rng = new Random(seed * 2);
 			
-			long bytesSent = 0;
-			
-			rng = new Random(seed * 2);
-			
-			count = 1000;
-			while(count > 0) {
+			count = 0;
+			while(count < total) {
 				while(buffer.remaining() >= 4) {
-					buffer.putInt(rng.nextInt());
+					buffer.putInt(count++);
 				}
 				
 				buffer.flip();
 				int sent = socket.write(buffer);
-				bytesSent += sent;
-				count -= sent;
 				System.out.println("TEST: Wrote " + sent + " bytes. bytes left to send: " + count);
 				buffer.compact();
 			}
 			
-			System.out.println("TEST: Written " + bytesSent + " total bytes.");
+			System.out.println("TEST: Written " + total + " total bytes.");
 			
 			socket.close();
 			

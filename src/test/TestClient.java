@@ -2,7 +2,6 @@ package test;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.Random;
 
 import edu.rbtp.RBTPSocket;
 import edu.rbtp.RBTPSocketAddress;
@@ -15,7 +14,7 @@ public class TestClient implements Runnable {
 	public static void main(String[] args) throws Exception {
 		NetworkManager.init(60);
 		
-		for(int i = 0; i < 10; i++) {
+		for(int i = 0; i < 1; i++) {
 			new Thread(new TestClient(1234 * i)).start();
 		}
 	}
@@ -34,63 +33,61 @@ public class TestClient implements Runnable {
 			System.out.println("TEST: Connecting...");
 			
 			socket.connect(new RBTPSocketAddress(new InetSocketAddress("localhost", 5000), 1000));
+			socket.getConnection().setWindowSize(10000);
 			
 			System.out.println("TEST: Connected!");
 			
 			ByteBuffer buffer = ByteBuffer.allocate(1000);
+
+//			Random rng = new Random(seed);
 			
-			Random rng = new Random(seed);
+			final int total = 100000;
 			
 			buffer.putInt(seed);
+			buffer.putInt(total);
 			buffer.flip();
 			socket.write(buffer);
 			buffer.clear();
 			
-			long bytesSent = 0;
-			
-			int count = 1000;
-			while(count > 0) {
+			int count = 0;
+			while(count < total) {
 				while(buffer.remaining() >= 4) {
-					buffer.putInt(rng.nextInt());
+					buffer.putInt(count++);
 				}
 				
 				buffer.flip();
 				int written = socket.write(buffer);
-				bytesSent += written;
-				count -= written;
 				System.out.println("TEST: Wrote " + written + " bytes. bytes left: " + count);
 				buffer.compact();
 			}
 			
-			System.out.println("TEST: Written " + bytesSent + " total bytes.");
+			System.out.println("TEST: Written " + total + " total bytes.");
+
+//			rng = new Random(seed * 2);
 			
-			rng = new Random(seed * 2);
 			buffer.clear();
 			
-			count = 1000;
-			while(count > 0) {
+			boolean allMatch = true;
+			
+			count = 0;
+			while(count < total) {
+				buffer.clear();
 				int read = socket.read(buffer);
 				buffer.flip();
 				
-				count -= read;
-				
 				System.out.println("TEST: Read " + read + " bytes.");
 				
-				boolean match = true;
-				
 				while(buffer.remaining() >= 4) {
-					if(rng.nextInt() != buffer.getInt()) {
-						System.out.println("TEST: DID NOT MATCH!");
-						match = false;
-						break;
+					int nextRng = count++, nextBuf = buffer.getInt();
+					if(nextRng != nextBuf) {
+						System.out.println("TEST: DID NOT MATCH! Count: " + nextRng + ", Buf: " + nextBuf);
+						allMatch = false;
 					}
 				}
-				
-				if(match) {
-					System.out.println("TEST: ALL MATCH SO FAR! Remaining to read: " + count);
-				}
-				
-				buffer.compact();
+			}
+			
+			if(allMatch) {
+				System.out.println("TEST: All match!");
 			}
 			
 			//socket.close();
