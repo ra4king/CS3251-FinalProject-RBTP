@@ -363,7 +363,7 @@ public class RBTPConnection implements Bindable {
 							outputBuffer.limit(prevPosition);
 							outputBuffer.compact();
 						}
-					} else if(requestClose && (state == RBTPConnectionState.ESTABLISHED || state == RBTPConnectionState.CLOSE_WAIT)) {
+					} else if(lastSent.size() == 0 && requestClose && (state == RBTPConnectionState.ESTABLISHED || state == RBTPConnectionState.CLOSE_WAIT)) {
 						// If all packets are ACK-ed and there is no more data to send, honor requestClose and send the FIN packet
 						
 						RBTPPacket finPacket = new RBTPPacket();
@@ -638,8 +638,6 @@ public class RBTPConnection implements Bindable {
 					}
 					
 					for(RBTPPacket p : packetsReceived) {
-						dataPackets++;
-						
 						if(PRINT_DEBUG) {
 							System.out.print(p.sequenceNumber() + ", ");
 						}
@@ -980,6 +978,8 @@ public class RBTPConnection implements Bindable {
 									state = RBTPConnectionState.CLOSED;
 									packet.destroy();
 								} else {
+									dataPackets++;
+									
 									// no flags are set
 									if(!packetsReceived.contains(packet)) {
 										if(PRINT_DEBUG) {
@@ -990,7 +990,6 @@ public class RBTPConnection implements Bindable {
 										prevReceiveTime = System.currentTimeMillis();
 									} else {
 										duplicateCount++;
-										dataPackets++;
 										if(PRINT_DEBUG) {
 											System.out.println("CONNECTION (IST): Received duplicate packet!");
 										}
@@ -1015,6 +1014,8 @@ public class RBTPConnection implements Bindable {
 									}
 									
 									sendPacket.accept(synFinLastPacket);
+								} else if(PRINT_DEBUG) {
+									System.out.println("CONNECTION (IST): Received irrelevant packet while in TIMED_WAIT.");
 								}
 								
 								packet.destroy();

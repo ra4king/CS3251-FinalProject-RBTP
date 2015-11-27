@@ -15,14 +15,8 @@ public class TestClient implements Runnable {
 		NetworkManager.init(60);
 		
 		for(int i = 0; i < 1; i++) {
-			new Thread(new TestClient(1234 * i)).start();
+			new Thread(new TestClient()).start();
 		}
-	}
-	
-	private int seed;
-	
-	public TestClient(int seed) {
-		this.seed = seed;
 	}
 	
 	@Override
@@ -32,18 +26,15 @@ public class TestClient implements Runnable {
 			
 			System.out.println("TEST: Connecting...");
 			
-			socket.connect(new RBTPSocketAddress(new InetSocketAddress("localhost", 5000), 1000));
-			socket.getConnection().setWindowSize(10000);
+			socket.connect(new RBTPSocketAddress(new InetSocketAddress("localhost", 61), 1000));
+			socket.getConnection().setWindowSize(1000000);
 			
 			System.out.println("TEST: Connected!");
 			
 			ByteBuffer buffer = ByteBuffer.allocate(1000);
-
-//			Random rng = new Random(seed);
 			
-			final int total = 100000;
+			final int total = 1000000;
 			
-			buffer.putInt(seed);
 			buffer.putInt(total);
 			buffer.flip();
 			socket.write(buffer);
@@ -57,17 +48,17 @@ public class TestClient implements Runnable {
 				
 				buffer.flip();
 				int written = socket.write(buffer);
-				System.out.println("TEST: Wrote " + written + " bytes. bytes left: " + count);
+				System.out.printf("TEST: Wrote %d bytes. Written total %d bytes.\n", written, count * 4);
 				buffer.compact();
 			}
 			
-			System.out.println("TEST: Written " + total + " total bytes.");
+			System.out.printf("TEST: Written %d total bytes.\n", total * 4);
 
-//			rng = new Random(seed * 2);
-			
 			buffer.clear();
 			
 			boolean allMatch = true;
+			
+			long time = -1;
 			
 			count = 0;
 			while(count < total) {
@@ -75,22 +66,28 @@ public class TestClient implements Runnable {
 				int read = socket.read(buffer);
 				buffer.flip();
 				
-				System.out.println("TEST: Read " + read + " bytes.");
+				if(time == -1) {
+					time = System.nanoTime();
+				}
+				
+				System.out.printf("TEST: Read %d bytes. Read so far: %d bytes.\n", read, count * 4);
 				
 				while(buffer.remaining() >= 4) {
-					int nextRng = count++, nextBuf = buffer.getInt();
-					if(nextRng != nextBuf) {
-						System.out.println("TEST: DID NOT MATCH! Count: " + nextRng + ", Buf: " + nextBuf);
+					int nextCount = count++, nextBuf = buffer.getInt();
+					if(nextCount != nextBuf) {
+						System.out.printf("TEST: DID NOT MATCH! Count: %d, Buf: %d\n", nextCount, nextBuf);
 						allMatch = false;
 					}
 				}
 			}
 			
+			System.out.printf("TEST: Reading %d bytes took %.2f ms\n", total * 4, (System.nanoTime() - time) / 1000000.0);
+			
 			if(allMatch) {
 				System.out.println("TEST: All match!");
 			}
 			
-			//socket.close();
+			socket.close();
 			
 			while(!socket.isClosed()) {
 				Thread.sleep(10);
